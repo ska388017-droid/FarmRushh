@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -40,6 +39,49 @@
   }
 }
 
+/* Isometric Engine Styles */
+.farm-container {
+  perspective: 1200px;
+  perspective-origin: 50% 0%;
+}
+
+.isometric-world {
+  transform: rotateX(55deg) rotateZ(-45deg);
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.isometric-plot {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.isometric-plot:hover {
+  transform: translateZ(10px);
+}
+
+.plot-base {
+  background: linear-gradient(135deg, #1a1525 0%, #0d0a14 100%);
+  box-shadow: 
+    -5px 5px 0px #08060d,
+    -10px 10px 20px rgba(0,0,0,0.5);
+}
+
+.plot-base.planted {
+  background: radial-gradient(circle at center, #2a1f3d 0%, #1a1525 100%);
+}
+
+.plot-base.ready {
+  box-shadow: 
+    -5px 5px 0px #08060d,
+    0 0 15px rgba(57, 255, 20, 0.2);
+}
+
+.crop-vertical {
+  transform: rotateZ(45deg) rotateX(-55deg) translateY(-40px);
+  transform-style: preserve-3d;
+}
+
 .neon-border {
   @apply border-primary/50 shadow-[0_0_15px_rgba(163,92,255,0.3)];
 }
@@ -54,4 +96,35 @@
 
 .glass-morphism {
   @apply bg-card/40 backdrop-blur-md border border-white/10;
+}
+
+/* Animations */
+@keyframes sway {
+  0%, 100% { transform: rotateX(-55deg) rotateZ(45deg) skewX(0deg); }
+  50% { transform: rotateX(-55deg) rotateZ(45deg) skewX(5deg); }
+}
+
+@keyframes float-coin {
+  0% { transform: translateY(0) opacity(1); }
+  100% { transform: translateY(-50px) opacity(0); }
+}
+
+@keyframes wander {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(20px, 10px); }
+  50% { transform: translate(-10px, 30px); }
+  75% { transform: translate(-30px, 5px); }
+  100% { transform: translate(0, 0); }
+}
+
+.animate-sway {
+  animation: sway 3s ease-in-out infinite;
+}
+
+.animate-wander {
+  animation: wander 20s linear infinite;
+}
+
+.floating-coin {
+  animation: float-coin 1s ease-out forwards;
 }
