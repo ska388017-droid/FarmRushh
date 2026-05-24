@@ -47,6 +47,7 @@ export interface UserState {
   referralEarnings: number;
   referrals: Referral[];
   crops: Crop[];
+  pets: string[];
   ownReferralProgress: ReferralTasks;
 }
 
@@ -85,8 +86,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tier: "Silver",
     spinTickets: 5,
     lastWithdrawalAt: null,
-    joinedAt: 0, // Set on mount
+    joinedAt: 0,
     crops: INITIAL_CROPS,
+    pets: ["CyberCat"],
     referralCode: "RN000000",
     referredBy: null,
     referralBonusClaimed: false,
@@ -96,7 +98,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    // Prevent hydration mismatch by generating dynamic values on mount
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
     const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
 

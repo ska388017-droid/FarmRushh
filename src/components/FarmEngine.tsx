@@ -52,7 +52,7 @@ export const FarmEngine = () => {
             <div className="absolute -inset-4 bg-primary/20 blur-xl rounded-full animate-pulse" />
             <Cat className="w-8 h-8 text-primary drop-shadow-[0_0_10px_rgba(163,92,255,0.8)]" />
             <div className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-background/80 border border-white/10 px-2 py-0.5 rounded text-[8px] font-black opacity-0 group-hover:opacity-100 transition-opacity uppercase">
-              {user.pets[0] || "CyberCat"}
+              {user.pets?.[0] || "CyberCat"}
             </div>
           </div>
         </div>
