@@ -5,18 +5,26 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 export type Tier = "Silver" | "Gold" | "Diamond" | "God Elite";
 
+export interface Referral {
+  uid: string;
+  username: string;
+  adsWatched: number;
+  joinedAt: number;
+  isRewarded: boolean;
+}
+
 export interface Crop {
   id: string;
   name: string;
-  growthTime: number; // in seconds
-  plantedAt: number | null; // timestamp
-  readyAt: number | null; // timestamp
+  growthTime: number; 
+  plantedAt: number | null;
+  readyAt: number | null;
   type: string;
 }
 
 export interface UserState {
   id: string;
-  uid: string; // CNXXXXXX
+  uid: string; 
   username: string;
   coins: number;
   xp: number;
@@ -29,6 +37,10 @@ export interface UserState {
   joinedAt: number;
   avatarUrl?: string;
   crops: Crop[];
+  referralCode: string;
+  referredBy: string | null;
+  referralEarnings: number;
+  referrals: Referral[];
 }
 
 interface GameContextType {
@@ -41,6 +53,7 @@ interface GameContextType {
   completeTask: () => void;
   spendTickets: (amount: number) => void;
   registerWithdrawal: () => void;
+  claimReferralReward: (targetUid: string) => void;
 }
 
 const INITIAL_CROPS: Crop[] = [
@@ -54,7 +67,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserState>(() => {
-    // Basic local fallback while loading or if offline
+    const refCode = "REF" + Math.floor(100000 + Math.random() * 900000);
     return {
       id: "user_temp",
       uid: "CN" + Math.floor(100000 + Math.random() * 900000),
@@ -69,21 +82,36 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastWithdrawalAt: null,
       joinedAt: Date.now(),
       crops: INITIAL_CROPS,
+      referralCode: refCode,
+      referredBy: null,
+      referralEarnings: 0,
+      referrals: [],
     };
   });
 
   useEffect(() => {
-    // Detect Telegram WebApp user
     if (typeof window !== "undefined") {
       const tg = (window as any).Telegram?.WebApp;
-      if (tg?.initDataUnsafe?.user) {
-        const tgUser = tg.initDataUnsafe.user;
-        setUser(u => ({
-          ...u,
-          username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
-          avatarUrl: tgUser.photo_url,
-          id: tgUser.id.toString(),
-        }));
+      if (tg) {
+        tg.expand();
+        const tgUser = tg.initDataUnsafe?.user;
+        const startParam = tg.initDataUnsafe?.start_param; // referral code from link
+
+        if (tgUser) {
+          setUser(u => ({
+            ...u,
+            username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
+            avatarUrl: tgUser.photo_url,
+            id: tgUser.id.toString(),
+            referredBy: u.referredBy || (startParam && startParam !== u.referralCode ? startParam : null)
+          }));
+
+          // Simulation of the "New User gets 2000" if referred
+          if (startParam && startParam !== user.referralCode) {
+            // This would normally be handled by a backend function to prevent self-referral
+            // For MVP: we set it if it's the first time
+          }
+        }
       }
     }
   }, []);
@@ -100,7 +128,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const watchAd = () => setUser(u => ({ ...u, adsWatched: u.adsWatched + 1 }));
   const completeTask = () => setUser(u => ({ ...u, tasksCompleted: u.tasksCompleted + 1 }));
   const spendTickets = (amount: number) => setUser(u => ({ ...u, spinTickets: Math.max(0, u.spinTickets - amount) }));
-
   const registerWithdrawal = () => setUser(u => ({ ...u, lastWithdrawalAt: Date.now() }));
 
   const plantCrop = (cropId: string, type: string) => {
@@ -129,8 +156,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const claimReferralReward = (targetUid: string) => {
+    setUser(u => {
+      const ref = u.referrals.find(r => r.uid === targetUid);
+      if (!ref || ref.isRewarded) return u;
+      
+      const isEligible = ref.adsWatched >= 5 && (Date.now() - ref.joinedAt > 24 * 60 * 60 * 1000);
+      if (!isEligible) return u;
+
+      return {
+        ...u,
+        coins: u.coins + 5000,
+        referralEarnings: u.referralEarnings + 5000,
+        referrals: u.referrals.map(r => r.uid === targetUid ? { ...r, isRewarded: true } : r)
+      };
+    });
+  };
+
   return (
-    <GameContext.Provider value={{ user, addCoins, addXp, claimHarvest, plantCrop, watchAd, completeTask, spendTickets, registerWithdrawal }}>
+    <GameContext.Provider value={{ 
+      user, addCoins, addXp, claimHarvest, plantCrop, watchAd, completeTask, spendTickets, registerWithdrawal, claimReferralReward 
+    }}>
       {children}
     </GameContext.Provider>
   );

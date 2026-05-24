@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { Sprout, Wallet, LayoutGrid, BrainCircuit, User, ListTodo, Ghost } from "lucide-react";
+import { Sprout, Wallet, LayoutGrid, BrainCircuit, User, ListTodo, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavigationProps {
@@ -16,12 +16,13 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
     { id: "arcade", label: "Arcade", icon: LayoutGrid },
     { id: "ai", label: "AI", icon: BrainCircuit },
     { id: "tasks", label: "Tasks", icon: ListTodo },
+    { id: "friends", label: "Friends", icon: Users },
     { id: "wallet", label: "Wallet", icon: Wallet },
-    { id: "profile", label: "Profile", icon: User },
+    { id: "profile", label: "Me", icon: User },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2 bg-background/80 backdrop-blur-xl border-t border-white/10">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-2 pb-6 pt-2 bg-background/80 backdrop-blur-xl border-t border-white/10">
       <div className="max-w-md mx-auto flex justify-between items-center">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -32,8 +33,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex flex-col items-center space-y-1 transition-all duration-300 relative px-2 py-1",
-                isActive ? "scale-110" : "opacity-40 hover:opacity-100"
+                "flex flex-col items-center space-y-1 transition-all duration-300 relative px-1 py-1",
+                isActive ? "scale-105" : "opacity-40 hover:opacity-100"
               )}
             >
               <div className={cn(
@@ -42,7 +43,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
               )}>
                 <Icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-white")} />
               </div>
-              <span className={cn("text-[9px] font-bold uppercase tracking-widest", isActive ? "text-primary" : "text-white")}>
+              <span className={cn("text-[8px] font-bold uppercase tracking-tight", isActive ? "text-primary" : "text-white")}>
                 {tab.label}
               </span>
               {isActive && (

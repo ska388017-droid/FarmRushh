@@ -11,9 +11,10 @@ import { Arcade } from "@/components/Arcade";
 import { AIStrategy } from "@/components/AIStrategy";
 import { Tasks } from "@/components/Tasks";
 import { Profile } from "@/components/Profile";
+import { ReferralSystem } from "@/components/ReferralSystem";
 import { Toaster } from "@/components/ui/toaster";
 import { Badge } from "@/components/ui/badge";
-import { Coins, User, Bell, Fingerprint } from "lucide-react";
+import { Coins, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const AppContent = () => {
@@ -59,6 +60,7 @@ const AppContent = () => {
         {activeTab === "arcade" && <Arcade />}
         {activeTab === "ai" && <AIStrategy />}
         {activeTab === "tasks" && <Tasks />}
+        {activeTab === "friends" && <ReferralSystem />}
         {activeTab === "wallet" && <WalletSystem />}
         {activeTab === "profile" && <Profile />}
       </section>

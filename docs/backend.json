@@ -15,11 +15,27 @@
         "level": { "type": "number" },
         "adsWatched": { "type": "number" },
         "tasksCompleted": { "type": "number" },
-        "lastWithdrawalAt": { "type": "number", "description": "Timestamp of the last withdrawal for cooldown tracking." },
+        "lastWithdrawalAt": { "type": "number" },
         "tier": { "type": "string", "enum": ["Silver", "Gold", "Diamond", "God Elite"] },
-        "joinedAt": { "type": "number" }
+        "joinedAt": { "type": "number" },
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string", "description": "UID of the user who invited this user." },
+        "referralEarnings": { "type": "number" },
+        "referrals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uid": { "type": "string" },
+              "username": { "type": "string" },
+              "adsWatched": { "type": "number" },
+              "joinedAt": { "type": "number" },
+              "isRewarded": { "type": "boolean" }
+            }
+          }
+        }
       },
-      "required": ["uid", "username", "coins"]
+      "required": ["uid", "username", "coins", "referralCode"]
     }
   },
   "auth": {
