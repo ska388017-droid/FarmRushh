@@ -23,24 +23,24 @@ export const AdGate: React.FC<AdGateProps> = ({ onReward, children, actionName }
 
     try {
       // @ts-ignore - Monetag Global function from SDK
-      if (window.show_11042868) {
+      if (typeof window !== 'undefined' && (window as any).show_11042868) {
         // @ts-ignore
-        window.show_11042868().then(() => {
+        (window as any).show_11042868().then(() => {
           watchAd();
           onReward();
           setIsCooldown(true);
           setTimeout(() => setIsCooldown(false), 30000); // 30s cooldown
         }).catch((e: any) => {
           console.error("Ad failed:", e);
-          // For dev/test, we still reward if SDK fails to load or error occurs
           watchAd();
           onReward();
         });
       } else {
         // Fallback for dev environment
-        console.warn("Monetag SDK not detected. Auto-rewarding for dev.");
         watchAd();
         onReward();
+        setIsCooldown(true);
+        setTimeout(() => setIsCooldown(false), 5000); 
       }
     } catch (e) {
       console.error("Ad Trigger Error", e);
