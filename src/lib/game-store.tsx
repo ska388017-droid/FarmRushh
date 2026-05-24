@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
@@ -43,12 +42,11 @@ export interface UserState {
   joinedAt: number;
   avatarUrl?: string;
   referralCode: string;
-  referredBy: string | null; // The referral code of the inviter
-  referralBonusClaimed: boolean; // For the 2000 coins bonus
+  referredBy: string | null; 
+  referralBonusClaimed: boolean; 
   referralEarnings: number;
   referrals: Referral[];
   crops: Crop[];
-  // Track current user's own referral task progress (if they were referred)
   ownReferralProgress: ReferralTasks;
 }
 
@@ -75,32 +73,40 @@ const INITIAL_CROPS: Crop[] = [
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserState>(() => {
-    const refCode = "RN" + Math.floor(100000 + Math.random() * 900000);
-    return {
-      id: "user_temp",
-      uid: "CN" + Math.floor(100000 + Math.random() * 900000),
-      username: "CyberFarmer",
-      coins: 1000,
-      xp: 0,
-      level: 1,
-      adsWatched: 0,
-      tasksCompleted: 0,
-      tier: "Silver",
-      spinTickets: 5,
-      lastWithdrawalAt: null,
-      joinedAt: Date.now(),
-      crops: INITIAL_CROPS,
-      referralCode: refCode,
-      referredBy: null,
-      referralBonusClaimed: false,
-      referralEarnings: 0,
-      referrals: [],
-      ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 }
-    };
+  const [user, setUser] = useState<UserState>({
+    id: "user_temp",
+    uid: "CN000000",
+    username: "CyberFarmer",
+    coins: 1000,
+    xp: 0,
+    level: 1,
+    adsWatched: 0,
+    tasksCompleted: 0,
+    tier: "Silver",
+    spinTickets: 5,
+    lastWithdrawalAt: null,
+    joinedAt: 0, // Set on mount
+    crops: INITIAL_CROPS,
+    referralCode: "RN000000",
+    referredBy: null,
+    referralBonusClaimed: false,
+    referralEarnings: 0,
+    referrals: [],
+    ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 }
   });
 
   useEffect(() => {
+    // Prevent hydration mismatch by generating dynamic values on mount
+    const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
+    const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
+
+    setUser(u => ({
+      ...u,
+      uid: u.uid === "CN000000" ? generatedUid : u.uid,
+      referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
+      joinedAt: u.joinedAt === 0 ? Date.now() : u.joinedAt
+    }));
+
     if (typeof window !== "undefined") {
       const tg = (window as any).Telegram?.WebApp;
       if (tg) {
@@ -124,7 +130,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Check for auto-reward if user was referred and finished tasks
   useEffect(() => {
     if (user.referredBy && !user.referralBonusClaimed) {
       const { tgJoined, igFollowed, adsWatched } = user.ownReferralProgress;
