@@ -1,14 +1,12 @@
-
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { GameProvider, useGame } from "@/lib/game-store";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Navigation } from "@/components/Navigation";
 import { FarmEngine } from "@/components/FarmEngine";
 import { WalletSystem } from "@/components/WalletSystem";
 import { Arcade } from "@/components/Arcade";
-import { AIStrategy } from "@/components/AIStrategy";
 import { Tasks } from "@/components/Tasks";
 import { Profile } from "@/components/Profile";
 import { ReferralSystem } from "@/components/ReferralSystem";
@@ -58,7 +56,6 @@ const AppContent = () => {
       <section className="mt-2 animate-in fade-in duration-500">
         {activeTab === "farm" && <FarmEngine />}
         {activeTab === "arcade" && <Arcade />}
-        {activeTab === "ai" && <AIStrategy />}
         {activeTab === "tasks" && <Tasks />}
         {activeTab === "friends" && <ReferralSystem />}
         {activeTab === "wallet" && <WalletSystem />}

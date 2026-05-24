@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -6,9 +5,10 @@ import { useGame } from "@/lib/game-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Share2, Copy, Gift, Info, CheckCircle2, Trophy, ArrowRight, Timer, Instagram, Send, PlayCircle } from "lucide-react";
+import { Users, Share2, Copy, Gift, Info, CheckCircle2, Trophy, ArrowRight, Timer, Instagram, Send, PlayCircle, Crown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const ReferralSystem = () => {
   const { user, claimReferralReward } = useGame();
@@ -32,6 +32,12 @@ export const ReferralSystem = () => {
 
   const activeReferrals = user.referrals.filter(r => r.isRewarded).length;
   const pendingReferrals = user.referrals.filter(r => !r.isRewarded).length;
+
+  const leaderboard = [
+    { name: "CryptoWhale", referrals: 124, coins: "620,000", avatar: "https://picsum.photos/seed/l1/100" },
+    { name: "NeonFarmer", referrals: 89, coins: "445,000", avatar: "https://picsum.photos/seed/l2/100" },
+    { name: "CyberKing", referrals: 56, coins: "280,000", avatar: "https://picsum.photos/seed/l3/100" },
+  ];
 
   return (
     <div className="space-y-6 pb-24">
@@ -82,6 +88,31 @@ export const ReferralSystem = () => {
         <StatsBox label="Active" value={activeReferrals} />
         <StatsBox label="Pending" value={pendingReferrals} />
         <StatsBox label="Earnings" value={user.referralEarnings} isCoins />
+      </div>
+
+      {/* Leaderboard Section */}
+      <div className="space-y-4">
+        <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 px-1 flex items-center gap-2">
+          <Crown className="w-3 h-3 text-secondary" /> Network Leaders
+        </h4>
+        <div className="space-y-2">
+          {leaderboard.map((item, idx) => (
+            <div key={idx} className="glass-morphism p-3 rounded-xl flex items-center justify-between border-white/5">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-black text-muted-foreground w-4">{idx + 1}.</span>
+                <Avatar className="w-8 h-8 border border-white/10">
+                  <AvatarImage src={item.avatar} />
+                  <AvatarFallback className="text-[8px]">{item.name[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-xs font-bold text-white">{item.name}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase">{item.referrals} Invites</p>
+                </div>
+              </div>
+              <p className="text-[10px] font-black text-primary">+{item.coins}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-4">

@@ -1,8 +1,7 @@
-
 "use client";
 
 import React from "react";
-import { Sprout, Wallet, LayoutGrid, BrainCircuit, User, ListTodo, Users } from "lucide-react";
+import { Sprout, Wallet, LayoutGrid, User, ListTodo, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavigationProps {
@@ -14,7 +13,6 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
   const tabs = [
     { id: "farm", label: "Farm", icon: Sprout },
     { id: "arcade", label: "Arcade", icon: LayoutGrid },
-    { id: "ai", label: "AI", icon: BrainCircuit },
     { id: "tasks", label: "Tasks", icon: ListTodo },
     { id: "friends", label: "Friends", icon: Users },
     { id: "wallet", label: "Wallet", icon: Wallet },
@@ -23,7 +21,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 px-2 pb-6 pt-2 bg-background/80 backdrop-blur-xl border-t border-white/10">
-      <div className="max-w-md mx-auto flex justify-between items-center">
+      <div className="max-w-md mx-auto flex justify-between items-center px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -33,7 +31,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex flex-col items-center space-y-1 transition-all duration-300 relative px-1 py-1",
+                "flex flex-col items-center space-y-1 transition-all duration-300 relative px-1 py-1 flex-1",
                 isActive ? "scale-105" : "opacity-40 hover:opacity-100"
               )}
             >
