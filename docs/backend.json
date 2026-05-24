@@ -9,33 +9,26 @@
         "username": { "type": "string" },
         "telegramId": { "type": "string" },
         "avatarUrl": { "type": "string" },
-        "coins": { "type": "number" },
+        "crystals": { "type": "number" },
         "xp": { "type": "number" },
         "level": { "type": "number" },
+        "energy": { "type": "number" },
+        "maxEnergy": { "type": "number" },
         "adsWatched": { "type": "number" },
         "tasksCompleted": { "type": "number" },
         "lastWithdrawalAt": { "type": "number" },
         "tier": { "type": "string", "enum": ["Silver", "Gold", "Diamond", "God Elite"] },
         "joinedAt": { "type": "number" },
         "referralCode": { "type": "string" },
-        "referredBy": { "type": "string", "description": "UID of the user who invited this user." },
+        "referredBy": { "type": "string" },
         "referralEarnings": { "type": "number" },
-        "pets": { "type": "array", "items": { "type": "string" } },
-        "referrals": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "uid": { "type": "string" },
-              "username": { "type": "string" },
-              "adsWatched": { "type": "number" },
-              "joinedAt": { "type": "number" },
-              "isRewarded": { "type": "boolean" }
-            }
-          }
-        }
+        "upgrades": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "lastPassiveCollection": { "type": "number" }
       },
-      "required": ["uid", "username", "coins", "referralCode"]
+      "required": ["uid", "username", "crystals", "referralCode"]
     }
   },
   "auth": {

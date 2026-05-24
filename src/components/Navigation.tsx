@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sprout, Wallet, LayoutGrid, User, ListTodo, Users } from "lucide-react";
+import { Pickaxe, User, ListTodo, Users, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavigationProps {
@@ -11,8 +11,7 @@ interface NavigationProps {
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   const tabs = [
-    { id: "farm", label: "Farm", icon: Sprout },
-    { id: "arcade", label: "Arcade", icon: LayoutGrid },
+    { id: "mining", label: "Mining", icon: Pickaxe },
     { id: "tasks", label: "Tasks", icon: ListTodo },
     { id: "friends", label: "Friends", icon: Users },
     { id: "wallet", label: "Wallet", icon: Wallet },

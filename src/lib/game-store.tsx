@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 export type Tier = "Silver" | "Gold" | "Diamond" | "God Elite";
 
@@ -18,26 +18,28 @@ export interface Referral {
   isRewarded: boolean;
 }
 
-export interface Crop {
+export interface Upgrade {
   id: string;
   name: string;
-  growthTime: number; 
-  plantedAt: number | null;
-  readyAt: number | null;
-  type: string;
+  level: number;
+  baseCost: number;
+  baseBenefit: number;
+  type: 'tap' | 'passive';
 }
 
 export interface UserState {
   id: string;
   uid: string; 
   username: string;
-  coins: number;
+  crystals: number;
   xp: number;
   level: number;
+  energy: number;
+  maxEnergy: number;
+  energyRegenRate: number;
   adsWatched: number;
   tasksCompleted: number;
   tier: Tier;
-  spinTickets: number;
   lastWithdrawalAt: number | null;
   joinedAt: number;
   avatarUrl?: string;
@@ -46,29 +48,29 @@ export interface UserState {
   referralBonusClaimed: boolean; 
   referralEarnings: number;
   referrals: Referral[];
-  crops: Crop[];
-  pets: string[];
   ownReferralProgress: ReferralTasks;
+  upgrades: Record<string, number>;
+  lastPassiveCollection: number;
 }
 
 interface GameContextType {
   user: UserState;
-  addCoins: (amount: number) => void;
-  addXp: (amount: number) => void;
-  claimHarvest: (cropId: string) => void;
-  plantCrop: (cropId: string, type: string) => void;
+  mine: () => { amount: number; isCritical: boolean } | null;
+  upgrade: (upgradeId: string) => void;
+  addCrystals: (amount: number) => void;
   watchAd: () => void;
   completeTask: (taskId: string) => void;
-  spendTickets: (amount: number) => void;
   registerWithdrawal: () => void;
   claimReferralReward: (targetUid: string) => void;
+  getMiningPower: () => number;
+  getPassiveIncome: () => number;
 }
 
-const INITIAL_CROPS: Crop[] = [
-  { id: "plot-1", name: "Plot 1", growthTime: 60, plantedAt: null, readyAt: null, type: "Wheat" },
-  { id: "plot-2", name: "Plot 2", growthTime: 120, plantedAt: null, readyAt: null, type: "Corn" },
-  { id: "plot-3", name: "Plot 3", growthTime: 180, plantedAt: null, readyAt: null, type: "Potato" },
-  { id: "plot-4", name: "Plot 4", growthTime: 300, plantedAt: null, readyAt: null, type: "Carrot" },
+const UPGRADES: Upgrade[] = [
+  { id: 'drill', name: 'Nano Drill', baseCost: 100, baseBenefit: 1, type: 'tap' },
+  { id: 'autominer', name: 'Auto-Miner', baseCost: 500, baseBenefit: 2, type: 'passive' },
+  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 50, type: 'tap' }, // Actually increases max energy in logic
+  { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -77,25 +79,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserState>({
     id: "user_temp",
     uid: "CN000000",
-    username: "CyberFarmer",
-    coins: 1000,
+    username: "CyberMiner",
+    crystals: 1000,
     xp: 0,
     level: 1,
+    energy: 1000,
+    maxEnergy: 1000,
+    energyRegenRate: 1,
     adsWatched: 0,
     tasksCompleted: 0,
     tier: "Silver",
-    spinTickets: 5,
     lastWithdrawalAt: null,
     joinedAt: 0,
-    crops: INITIAL_CROPS,
-    pets: ["CyberCat"],
     referralCode: "RN000000",
     referredBy: null,
     referralBonusClaimed: false,
     referralEarnings: 0,
     referrals: [],
-    ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 }
+    ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
+    upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
+    lastPassiveCollection: Date.now()
   });
+
+  const getMiningPower = useCallback(() => {
+    const drillLevel = user.upgrades.drill || 0;
+    return 1 + drillLevel * 2;
+  }, [user.upgrades.drill]);
+
+  const getPassiveIncome = useCallback(() => {
+    const autoMinerLevel = user.upgrades.autominer || 0;
+    const photonLevel = user.upgrades.photon_collector || 0;
+    return (autoMinerLevel * 2) + (photonLevel * 10);
+  }, [user.upgrades.autominer, user.upgrades.photon_collector]);
 
   useEffect(() => {
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
@@ -116,44 +131,78 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const startParam = tg.initDataUnsafe?.start_param; 
 
         if (tgUser) {
-          setUser(u => {
-            const isSelfReferral = startParam === u.referralCode;
-            return {
-              ...u,
-              username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
-              avatarUrl: tgUser.photo_url,
-              id: tgUser.id.toString(),
-              referredBy: !u.referredBy && startParam && !isSelfReferral ? startParam : u.referredBy
-            };
-          });
+          setUser(u => ({
+            ...u,
+            username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
+            avatarUrl: tgUser.photo_url,
+            id: tgUser.id.toString(),
+            referredBy: !u.referredBy && startParam && startParam !== u.referralCode ? startParam : u.referredBy
+          }));
         }
       }
     }
   }, []);
 
+  // Passive Income and Energy Regen
   useEffect(() => {
-    if (user.referredBy && !user.referralBonusClaimed) {
-      const { tgJoined, igFollowed, adsWatched } = user.ownReferralProgress;
-      if (tgJoined && igFollowed && adsWatched >= 5) {
-        setUser(u => ({
+    const interval = setInterval(() => {
+      setUser(u => {
+        const now = Date.now();
+        const passiveIncome = getPassiveIncome();
+        const newCrystals = u.crystals + (passiveIncome / 10); // Check every 100ms
+        const newEnergy = Math.min(u.maxEnergy, u.energy + u.energyRegenRate / 10);
+        
+        return {
           ...u,
-          coins: u.coins + 2000,
-          referralBonusClaimed: true
-        }));
-      }
-    }
-  }, [user.ownReferralProgress, user.referredBy, user.referralBonusClaimed]);
+          crystals: newCrystals,
+          energy: newEnergy,
+          lastPassiveCollection: now
+        };
+      });
+    }, 100);
+    return () => clearInterval(interval);
+  }, [getPassiveIncome]);
 
-  const addCoins = (amount: number) => setUser(u => ({ ...u, coins: u.coins + amount }));
-  
-  const addXp = (amount: number) => {
-    setUser(u => {
-      const newXp = u.xp + amount;
-      const newLevel = Math.floor(newXp / 1000) + 1;
-      return { ...u, xp: newXp, level: newLevel };
-    });
+  const mine = () => {
+    if (user.energy < 1) return null;
+    
+    const isCritical = Math.random() < 0.05;
+    const power = getMiningPower();
+    const amount = isCritical ? power * 5 : power;
+
+    setUser(u => ({
+      ...u,
+      crystals: u.crystals + amount,
+      energy: Math.max(0, u.energy - 1),
+      xp: u.xp + (isCritical ? 5 : 1),
+      level: Math.floor((u.xp + (isCritical ? 5 : 1)) / 1000) + 1
+    }));
+
+    return { amount, isCritical };
   };
 
+  const upgrade = (upgradeId: string) => {
+    const upg = UPGRADES.find(x => x.id === upgradeId);
+    if (!upg) return;
+
+    const currentLevel = user.upgrades[upgradeId] || 0;
+    const cost = Math.floor(upg.baseCost * Math.pow(1.5, currentLevel));
+
+    if (user.crystals >= cost) {
+      setUser(u => ({
+        ...u,
+        crystals: u.crystals - cost,
+        upgrades: {
+          ...u.upgrades,
+          [upgradeId]: currentLevel + 1
+        },
+        maxEnergy: upgradeId === 'energy_core' ? u.maxEnergy + upg.baseBenefit : u.maxEnergy
+      }));
+    }
+  };
+
+  const addCrystals = (amount: number) => setUser(u => ({ ...u, crystals: u.crystals + amount }));
+  
   const watchAd = () => {
     setUser(u => ({
       ...u,
@@ -179,35 +228,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const spendTickets = (amount: number) => setUser(u => ({ ...u, spinTickets: Math.max(0, u.spinTickets - amount) }));
-  
   const registerWithdrawal = () => setUser(u => ({ ...u, lastWithdrawalAt: Date.now() }));
-
-  const plantCrop = (cropId: string, type: string) => {
-    setUser(u => ({
-      ...u,
-      crops: u.crops.map(c => {
-        if (c.id === cropId) {
-          const now = Date.now();
-          return { ...c, plantedAt: now, readyAt: now + c.growthTime * 1000, type };
-        }
-        return c;
-      })
-    }));
-  };
-
-  const claimHarvest = (cropId: string) => {
-    setUser(u => {
-      const crop = u.crops.find(c => c.id === cropId);
-      if (!crop || !crop.readyAt || Date.now() < crop.readyAt) return u;
-      return {
-        ...u,
-        coins: u.coins + 250,
-        xp: u.xp + 50,
-        crops: u.crops.map(c => c.id === cropId ? { ...c, plantedAt: null, readyAt: null } : c)
-      };
-    });
-  };
 
   const claimReferralReward = (targetUid: string) => {
     setUser(u => {
@@ -221,7 +242,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         ...u,
-        coins: u.coins + 5000,
+        crystals: u.crystals + 5000,
         referralEarnings: u.referralEarnings + 5000,
         referrals: u.referrals.map(r => r.uid === targetUid ? { ...r, isRewarded: true } : r)
       };
@@ -230,7 +251,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, addCoins, addXp, claimHarvest, plantCrop, watchAd, completeTask, spendTickets, registerWithdrawal, claimReferralReward 
+      user, mine, upgrade, addCrystals, watchAd, completeTask, registerWithdrawal, claimReferralReward, getMiningPower, getPassiveIncome
     }}>
       {children}
     </GameContext.Provider>
