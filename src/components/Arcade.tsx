@@ -6,12 +6,18 @@ import { useGame } from "@/lib/game-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AdGate } from "@/components/ads/AdGate";
-import { Gift, Package, Star, TrendingUp, Sparkles, Zap } from "lucide-react";
+import { Gift, Package, Star, TrendingUp, Sparkles, Zap, Swords, Trophy, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export const Arcade = () => {
-  const { user, spendTickets, addCoins } = useGame();
+  const { user, spendTickets, addCoins, addXp } = useGame();
   const [isSpinning, setIsSpinning] = useState(false);
+  
+  // Duel State Machine
+  const [duelStatus, setDuelStatus] = useState<'idle' | 'matching' | 'won' | 'rewarded' | 'choosing_card'>('idle');
+  const [selectedCard, setSelectedCard] = useState<number | null>(null);
+  const [extraReward, setExtraReward] = useState<number>(0);
 
   const handleSpin = () => {
     if (user.spinTickets <= 0) {
@@ -29,6 +35,34 @@ export const Arcade = () => {
     }, 2000);
   };
 
+  const startDuel = () => {
+    setDuelStatus('matching');
+    setTimeout(() => {
+      setDuelStatus('won');
+      toast({ title: "VICTORY!", description: "You defeated the Cyber-Sentinel!" });
+    }, 2500);
+  };
+
+  const handleClaimBaseReward = () => {
+    addCoins(250);
+    addXp(50);
+    setDuelStatus('choosing_card');
+  };
+
+  const handleSelectCard = (index: number) => {
+    if (selectedCard !== null) return;
+    const bonus = Math.floor(Math.random() * 1000) + 500;
+    setSelectedCard(index);
+    setExtraReward(bonus);
+    addCoins(bonus);
+    
+    setTimeout(() => {
+      toast({ title: "Bonus Unlocked!", description: `Found ${bonus} extra coins!` });
+      setDuelStatus('idle');
+      setSelectedCard(null);
+    }, 3000);
+  };
+
   return (
     <div className="space-y-8 pb-20">
       <div className="flex items-center justify-between">
@@ -40,6 +74,79 @@ export const Arcade = () => {
           </Card>
         </div>
       </div>
+
+      {/* NEON DUEL SECTION (New Requested Flow) */}
+      <Card className="glass-morphism border-secondary/30 bg-gradient-to-br from-secondary/10 to-transparent p-6 relative overflow-hidden">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Swords className="w-5 h-5 text-secondary" />
+            <h3 className="text-sm font-black tracking-widest uppercase text-white">Neon Duel</h3>
+          </div>
+          <Badge variant="secondary" className="bg-secondary/20 text-secondary border-none animate-pulse">LIVE MATCH</Badge>
+        </div>
+
+        {duelStatus === 'idle' && (
+          <div className="text-center py-4 space-y-4">
+            <p className="text-xs text-muted-foreground uppercase font-black">Challenge the Grid Master</p>
+            <Button onClick={startDuel} className="w-full bg-secondary text-secondary-foreground font-black py-6 rounded-xl hover:bg-secondary/80">
+              START MATCH (1 Ticket)
+            </Button>
+          </div>
+        )}
+
+        {duelStatus === 'matching' && (
+          <div className="flex flex-col items-center justify-center py-10 space-y-4">
+            <Loader2 className="w-12 h-12 text-secondary animate-spin" />
+            <p className="text-xs font-black text-secondary animate-pulse uppercase tracking-[0.3em]">Synching Neural Link...</p>
+          </div>
+        )}
+
+        {duelStatus === 'won' && (
+          <div className="text-center py-6 space-y-6 animate-in zoom-in duration-500">
+            <div className="relative inline-block">
+               <Trophy className="w-20 h-20 text-yellow-500 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]" />
+               <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-secondary animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xl font-black text-white italic">MATCH WON!</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-bold">Watch ad to unlock base 250 Coins</p>
+            </div>
+            <AdGate actionName="Claim Duel Reward" onReward={handleClaimBaseReward}>
+              <Button className="w-full bg-primary font-black py-7 rounded-2xl shadow-xl uppercase tracking-tighter">
+                <Zap className="w-5 h-5 mr-2" /> WATCH AD & CLAIM 250
+              </Button>
+            </AdGate>
+          </div>
+        )}
+
+        {duelStatus === 'choosing_card' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+            <p className="text-center text-xs font-black text-secondary uppercase tracking-widest">Select your Mystery Card</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2].map((i) => (
+                <div 
+                  key={i}
+                  onClick={() => handleSelectCard(i)}
+                  className={cn(
+                    "aspect-[3/4] rounded-xl border-2 flex items-center justify-center cursor-pointer transition-all duration-500",
+                    selectedCard === null ? "border-primary/40 bg-primary/5 hover:scale-105 hover:border-primary" : 
+                    selectedCard === i ? "border-secondary bg-secondary/20 scale-110 rotate-y-180" : "opacity-20 grayscale"
+                  )}
+                >
+                  {selectedCard === i ? (
+                    <div className="text-center">
+                      <p className="text-[8px] font-black text-secondary uppercase">Bonus</p>
+                      <p className="text-sm font-black text-white">+{extraReward}</p>
+                    </div>
+                  ) : (
+                    <Gift className="w-8 h-8 text-primary/40" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Hero Spin Section */}
       <Card className="glass-morphism border-primary/20 bg-gradient-to-b from-primary/10 via-background to-background p-8 relative overflow-hidden group">
@@ -122,3 +229,13 @@ const MysteryBoxCard = ({ tier, maxReward, isLarge }: { tier: string, maxReward:
     </Card>
   );
 };
+
+const Badge = ({ children, variant, className }: any) => (
+  <span className={cn(
+    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
+    variant === 'secondary' ? "bg-secondary/10 text-secondary border-secondary/20" : "bg-primary/10 text-primary border-primary/20",
+    className
+  )}>
+    {children}
+  </span>
+);
