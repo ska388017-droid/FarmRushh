@@ -1,0 +1,35 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "neon-wheat",
+      "description": "Neon glowing wheat crop",
+      "imageUrl": "https://picsum.photos/seed/farm1/400/400",
+      "imageHint": "neon plant"
+    },
+    {
+      "id": "cyber-pet-1",
+      "description": "Cyberpunk robotic cat pet",
+      "imageUrl": "https://picsum.photos/seed/pet1/400/400",
+      "imageHint": "cyberpunk pet"
+    },
+    {
+      "id": "cyber-pet-2",
+      "description": "Cyberpunk robotic owl pet",
+      "imageUrl": "https://picsum.photos/seed/pet2/400/400",
+      "imageHint": "robotic animal"
+    },
+    {
+      "id": "mystery-box",
+      "description": "Glowing mysterious loot box",
+      "imageUrl": "https://picsum.photos/seed/box1/400/400",
+      "imageHint": "mystery box"
+    },
+    {
+      "id": "neon-dashboard",
+      "description": "High-tech cyberpunk dashboard background",
+      "imageUrl": "https://picsum.photos/seed/dash1/800/400",
+      "imageHint": "cyberpunk interface"
+    }
+  ]
+}
