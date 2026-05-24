@@ -1,0 +1,34 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user game stats, balance, and Telegram profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user (CNXXXXXX format)." },
+        "username": { "type": "string" },
+        "telegramId": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "coins": { "type": "number" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "adsWatched": { "type": "number" },
+        "tasksCompleted": { "type": "number" },
+        "lastWithdrawalAt": { "type": "number", "description": "Timestamp of the last withdrawal for cooldown tracking." },
+        "tier": { "type": "string", "enum": ["Silver", "Gold", "Diamond", "God Elite"] },
+        "joinedAt": { "type": "number" }
+      },
+      "required": ["uid", "username", "coins"]
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "User profile document indexed by Firebase Auth UID."
+    }
+  }
+}

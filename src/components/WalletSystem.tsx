@@ -6,111 +6,114 @@ import { useGame } from "@/lib/game-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Wallet, ArrowUpRight, ShieldAlert, History } from "lucide-react";
+import { Wallet, ArrowUpRight, ShieldAlert, History, Info, Clock, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 export const WalletSystem = () => {
-  const { user } = useGame();
+  const { user, registerWithdrawal } = useGame();
 
   const handleWithdraw = (network: string) => {
-    // Hardened Withdrawal Guard Logic
-    const accountAgeDays = (Date.now() - user.joinedAt) / (1000 * 60 * 60 * 24);
-    
-    if (accountAgeDays < 3) {
-      toast({ title: "Guard Alert", description: "Account must be at least 3 days old.", variant: "destructive" });
+    const MIN_WITHDRAW_COINS = 50000;
+    const cooldownMs = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Withdrawal Guard Logic
+    if (user.coins < MIN_WITHDRAW_COINS) {
+      toast({ title: "Insufficient Balance", description: "You need at least 50,000 coins to withdraw.", variant: "destructive" });
       return;
     }
+
+    if (user.lastWithdrawalAt && (now - user.lastWithdrawalAt < cooldownMs)) {
+      const hoursLeft = Math.ceil((cooldownMs - (now - user.lastWithdrawalAt)) / (1000 * 60 * 60));
+      toast({ title: "Cooldown Active", description: `You can withdraw again in ${hoursLeft} hours.`, variant: "destructive" });
+      return;
+    }
+
     if (user.adsWatched < 20) {
       toast({ title: "Guard Alert", description: "Watch at least 20 ads to unlock withdrawals.", variant: "destructive" });
       return;
     }
-    if (user.tasksCompleted < 5) {
-      toast({ title: "Guard Alert", description: "Complete at least 5 tasks to unlock withdrawals.", variant: "destructive" });
-      return;
-    }
     
-    toast({ title: "Processing", description: `Withdrawal request sent via ${network}.` });
+    registerWithdrawal();
+    toast({ title: "Processing", description: `Withdrawal request of ₹${(user.coins / 1000).toFixed(2)} sent via ${network}.` });
   };
+
+  const inrValue = (user.coins / 1000).toFixed(2);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold neon-text-primary">WALLETS</h2>
-        <Badge variant="outline" className="border-primary text-primary">MULTI-CHAIN</Badge>
+        <h2 className="text-2xl font-bold neon-text-primary">WALLET</h2>
+        <Badge variant="outline" className="border-primary/50 text-primary bg-primary/5 text-[10px] px-3">
+          SECURE ESCROW
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        <Card className="glass-morphism border-primary/30 shadow-[0_0_20px_rgba(163,92,255,0.15)] bg-gradient-to-br from-card to-primary/10">
+        <Card className="glass-morphism border-primary/30 shadow-[0_0_30px_rgba(163,92,255,0.1)] bg-gradient-to-br from-card/80 to-primary/5">
           <CardContent className="p-6">
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-6">
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-widest">Total Value (Est.)</p>
-                <div className="text-3xl font-black text-white flex items-baseline gap-2">
-                  ₹{(user.coins * 0.05).toFixed(2)}
-                  <span className="text-xs font-normal text-muted-foreground">INR</span>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Current Balance</p>
+                <div className="text-4xl font-black text-white flex items-center gap-2">
+                  {user.coins.toLocaleString()}
+                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md">COINS</span>
                 </div>
               </div>
-              <Wallet className="w-8 h-8 text-primary opacity-50" />
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                <Wallet className="w-6 h-6 text-primary" />
+              </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-2 py-4 border-y border-white/5">
-              <div className="text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Coins</p>
-                <p className="font-bold text-secondary">{user.coins.toLocaleString()}</p>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+              <div className="flex flex-col">
+                <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Estimated Value</p>
+                <p className="text-xl font-black text-secondary">₹{inrValue}</p>
               </div>
-              <div className="text-center border-x border-white/5">
-                <p className="text-[10px] text-muted-foreground uppercase">USDT</p>
-                <p className="font-bold text-white">${(user.coins * 0.0006).toFixed(4)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">TON</p>
-                <p className="font-bold text-primary">{(user.coins * 0.00002).toFixed(4)}</p>
+              <div className="flex flex-col items-end">
+                <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Conversion Ratio</p>
+                <p className="text-xs font-bold text-white/80">1000 Coins = ₹1</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        <div className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+          <Info className="w-3 h-3 text-secondary" /> Minimum Withdrawal: 50,000 Coins (₹50)
+        </div>
+
         <Tabs defaultValue="upi" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-xl p-1">
-            <TabsTrigger value="upi" className="rounded-lg">UPI</TabsTrigger>
-            <TabsTrigger value="ton" className="rounded-lg">TON</TabsTrigger>
-            <TabsTrigger value="bnb" className="rounded-lg">BNB</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-white/5 rounded-xl p-1 border border-white/5">
+            <TabsTrigger value="upi" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-bold text-[10px]">UPI</TabsTrigger>
+            <TabsTrigger value="ton" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-bold text-[10px]">TON</TabsTrigger>
+            <TabsTrigger value="bnb" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-bold text-[10px]">BNB</TabsTrigger>
           </TabsList>
           
           <div className="mt-4">
             <TabsContent value="upi">
-              <WithdrawForm title="UPI Instant Payout" subtitle="Min: 10,000 Coins" onWithdraw={() => handleWithdraw("UPI")} />
+              <WithdrawForm title="UPI Instant Payout" subtitle="Requires valid UPI ID" onWithdraw={() => handleWithdraw("UPI")} />
             </TabsContent>
             <TabsContent value="ton">
-              <WithdrawForm title="TON Network" subtitle="Address validation required" onWithdraw={() => handleWithdraw("TON")} />
+              <WithdrawForm title="TON USDT" subtitle="Network: TON (BEP-20 Not Supported)" onWithdraw={() => handleWithdraw("TON")} />
             </TabsContent>
             <TabsContent value="bnb">
-              <WithdrawForm title="BNB Chain" subtitle="BEP-20 Network only" onWithdraw={() => handleWithdraw("BNB Chain")} />
+              <WithdrawForm title="BNB USDT" subtitle="Network: BEP-20" onWithdraw={() => handleWithdraw("BNB Chain")} />
             </TabsContent>
           </div>
         </Tabs>
 
-        <Card className="glass-morphism border-red-500/20">
+        <Card className="glass-morphism border-primary/10 bg-white/5">
           <CardHeader className="p-4 pb-0 flex flex-row items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-red-500" />
-            <CardTitle className="text-xs uppercase text-red-500 tracking-tighter">Eligibility Guard</CardTitle>
+            <ShieldAlert className="w-4 h-4 text-primary" />
+            <CardTitle className="text-[10px] uppercase text-primary font-black tracking-widest">Eligibility Guard</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-2">
-            <ul className="text-[10px] space-y-1 text-muted-foreground">
-              <li className={`flex justify-between ${user.adsWatched >= 20 ? 'text-secondary' : ''}`}>
-                <span>• 20 Ads Watched</span>
-                <span>{user.adsWatched}/20</span>
-              </li>
-              <li className={`flex justify-between ${user.tasksCompleted >= 5 ? 'text-secondary' : ''}`}>
-                <span>• 5 Tasks Completed</span>
-                <span>{user.tasksCompleted}/5</span>
-              </li>
-              <li className="flex justify-between">
-                <span>• Account Age &gt; 3 Days</span>
-                <span>4 Days</span>
-              </li>
-            </ul>
+            <div className="space-y-3">
+              <GuardItem label="20 Ads Watched" current={user.adsWatched} target={20} />
+              <GuardItem label="Min. 50,000 Coins" current={user.coins} target={50000} />
+              <GuardItem label="24h Cooldown" current={user.lastWithdrawalAt ? "Pending" : "Ready"} target="Ready" isSpecial />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -118,16 +121,31 @@ export const WalletSystem = () => {
   );
 };
 
+const GuardItem = ({ label, current, target, isSpecial }: any) => {
+  const isComplete = typeof current === 'number' ? current >= target : current === target;
+  return (
+    <div className="flex justify-between items-center">
+      <span className={`text-[10px] font-bold uppercase ${isComplete ? 'text-secondary' : 'text-muted-foreground'}`}>{label}</span>
+      <span className={`text-[10px] font-mono ${isComplete ? 'text-secondary' : 'text-primary/50'}`}>
+        {isSpecial ? current : `${current.toLocaleString()}/${target.toLocaleString()}`}
+      </span>
+    </div>
+  );
+};
+
 const WithdrawForm = ({ title, subtitle, onWithdraw }: { title: string, subtitle: string, onWithdraw: () => void }) => (
-  <div className="glass-morphism p-4 rounded-2xl space-y-4">
-    <div>
-      <h3 className="font-bold text-white">{title}</h3>
-      <p className="text-xs text-muted-foreground">{subtitle}</p>
+  <div className="glass-morphism p-4 rounded-2xl space-y-4 border-white/5 bg-gradient-to-br from-white/5 to-transparent">
+    <div className="flex justify-between items-center">
+      <div>
+        <h3 className="font-bold text-sm text-white">{title}</h3>
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{subtitle}</p>
+      </div>
+      <Badge variant="outline" className="border-secondary/20 text-secondary bg-secondary/5 text-[9px]">FASTEST</Badge>
     </div>
     <div className="space-y-2">
-      <input type="text" placeholder="Enter ID/Address" className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:border-primary transition-all" />
-      <Button onClick={onWithdraw} className="w-full bg-primary hover:bg-primary/80 font-bold group">
-        WITHDRAW <ArrowUpRight className="ml-2 w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+      <input type="text" placeholder="Enter ID/Address" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 font-mono" />
+      <Button onClick={onWithdraw} className="w-full bg-primary hover:bg-primary/80 font-black group h-12 rounded-xl shadow-lg shadow-primary/10">
+        EXECUTE WITHDRAWAL <ArrowUpRight className="ml-2 w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
       </Button>
     </div>
   </div>
