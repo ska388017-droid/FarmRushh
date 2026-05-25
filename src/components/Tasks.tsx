@@ -21,14 +21,19 @@ import {
   Clapperboard, 
   Ticket,
   Sparkles,
-  MonitorPlay
+  MonitorPlay,
+  Flame,
+  Gamepad2,
+  Gift,
+  Lock,
+  ArrowUpCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AdGate } from "@/components/ads/AdGate";
 import { cn } from "@/lib/utils";
 
 export const Tasks = () => {
-  const { addCoins, completeTask, claimAdMilestone, user, watchAd } = useGame();
+  const { addCoins, completeTask, claimAdMilestone, enterAdLottery, claimAdChest, user, watchAd } = useGame();
 
   const handleTask = (taskId: string, coins: number) => {
     const isCompleted = taskId === "tg_join" ? user.ownReferralProgress.tgJoined : taskId === "ig_follow" ? user.ownReferralProgress.igFollowed : false;
@@ -47,6 +52,14 @@ export const Tasks = () => {
     { id: "ad_3", target: 3, reward: 2000, title: "Novice Viewer", subtitle: "Watch 3 Ads" },
     { id: "ad_10", target: 10, reward: 10000, title: "Ad Enthusiast", subtitle: "Watch 10 Ads" },
     { id: "ad_25", target: 25, reward: 25000, title: "Mystery Box", subtitle: "Watch 25 Ads", special: true },
+    { id: "ad_50", target: 50, reward: 60000, title: "Ad Pro", subtitle: "Watch 50 Ads", special: true },
+    { id: "ad_100", target: 100, reward: 150000, title: "VIP Legend", subtitle: "Watch 100 Ads", special: true },
+  ];
+
+  const videoChests = [
+    { id: "chest_1", name: "Silver Node", reward: 2500, ads: 1 },
+    { id: "chest_2", name: "Gold Cache", reward: 7500, ads: 3 },
+    { id: "chest_3", name: "Cyber Vault", reward: 20000, ads: 7 },
   ];
 
   const socialTasks = [
@@ -62,7 +75,14 @@ export const Tasks = () => {
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold neon-text-primary tracking-tighter uppercase">Bounty Hub</h2>
-        <Badge variant="outline" className="border-secondary text-secondary font-black">ACTIVE</Badge>
+        <div className="flex items-center gap-2">
+           {user.adStreak > 1 && (
+             <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 animate-pulse">
+               <Flame className="w-3 h-3 mr-1" /> STREAK x{user.adStreak}
+             </Badge>
+           )}
+           <Badge variant="outline" className="border-secondary text-secondary font-black">ACTIVE</Badge>
+        </div>
       </div>
 
       {/* Cinema Rewards Section */}
@@ -119,23 +139,69 @@ export const Tasks = () => {
         </Card>
       </div>
 
-      {user.referredBy && !user.referralBonusClaimed && (
-        <Card className="glass-morphism p-4 border-primary/40 bg-primary/5 animate-pulse">
-          <div className="flex items-start gap-3">
-            <Zap className="w-5 h-5 text-primary mt-0.5" />
+      {/* Video Chests Section */}
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <Box className="w-3 h-3 text-secondary" /> Video Chests
+        </h3>
+        <div className="grid grid-cols-3 gap-3">
+          {videoChests.map((chest) => {
+            const isUnlocked = user.unlockedChests?.includes(chest.id);
+            return (
+              <Card key={chest.id} className={cn(
+                "glass-morphism p-3 flex flex-col items-center gap-2 border-white/5 transition-all",
+                isUnlocked ? "opacity-40 grayscale" : "hover:border-secondary/40"
+              )}>
+                <div className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center border",
+                  isUnlocked ? "bg-white/5" : "bg-secondary/10 border-secondary/20"
+                )}>
+                  {isUnlocked ? <Lock className="w-6 h-6 text-muted-foreground" /> : <Box className="w-6 h-6 text-secondary animate-bounce" />}
+                </div>
+                <div className="text-center space-y-0.5">
+                   <p className="text-[8px] font-black text-white uppercase truncate">{chest.name}</p>
+                   <p className="text-[7px] text-secondary font-bold">+{chest.reward} C</p>
+                </div>
+                <AdGate actionName={`Open ${chest.name}`} onReward={() => {
+                  claimAdChest(chest.id, chest.reward);
+                  toast({ title: "Chest Opened!", description: `Received ${chest.reward} coins.` });
+                }}>
+                  <Button size="sm" disabled={isUnlocked} className="h-6 text-[8px] w-full font-black rounded-md">
+                    {isUnlocked ? "DONE" : "OPEN"}
+                  </Button>
+                </AdGate>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Ad Lottery Entry */}
+      <Card className="glass-morphism p-5 border-dashed border-primary/40 bg-primary/5 group">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/40 group-hover:scale-110 transition-transform">
+              <Gamepad2 className="w-6 h-6 text-primary" />
+            </div>
             <div>
-              <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">Referral Bonus Pending</p>
-              <p className="text-[10px] text-white/80 italic leading-snug">
-                Complete the TG and IG tasks below + watch 5 ads to unlock your 2,000 coin welcome bonus!
-              </p>
+              <p className="text-xs font-black text-white uppercase tracking-tighter">Daily Cyber-Lottery</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">Entry: Watch 1 Ad | Win 50k Coins</p>
             </div>
           </div>
-        </Card>
-      )}
+          <AdGate actionName="Enter Lottery" onReward={() => {
+            enterAdLottery();
+            toast({ title: "Entry Verified!", description: "You've been entered into the daily draw." });
+          }}>
+            <Button className="bg-primary text-white font-black h-10 px-6 rounded-xl shadow-lg">
+              {user.lotteryEntries > 0 ? `ENTRIES: ${user.lotteryEntries}` : "JOIN"}
+            </Button>
+          </AdGate>
+        </div>
+      </Card>
 
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <Trophy className="w-3 h-3 text-secondary" /> Ad Milestones
+          <Trophy className="w-3 h-3 text-secondary" /> Ad Ladder Milestones
         </h3>
         
         <div className="space-y-3">
@@ -149,7 +215,7 @@ export const Tasks = () => {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${milestone.special ? 'bg-secondary/10 border-secondary/30' : 'bg-primary/10 border-primary/20'}`}>
-                      {milestone.special ? <Box className="w-5 h-5 text-secondary" /> : <PlayCircle className="w-5 h-5 text-primary" />}
+                      {milestone.special ? <ArrowUpCircle className="w-5 h-5 text-secondary" /> : <PlayCircle className="w-5 h-5 text-primary" />}
                     </div>
                     <div>
                       <p className="text-xs font-black text-white uppercase">{milestone.title}</p>
@@ -182,34 +248,6 @@ export const Tasks = () => {
             );
           })}
         </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <MonitorPlay className="w-3 h-3 text-secondary" /> Quick Crystal Burst
-        </h3>
-        
-        <Card className="glass-morphism p-4 border-secondary/20 bg-secondary/5 relative overflow-hidden group border-dashed">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20">
-                <Play className="w-6 h-6 text-secondary animate-pulse" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-white uppercase tracking-tighter">Fast-Track Bounty</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Watch ad for 500 crystals</p>
-              </div>
-            </div>
-            <AdGate actionName="Tasks Page Ad" onReward={() => {
-              addCoins(500);
-              toast({ title: "Task Complete", description: "500 crystals added." });
-            }}>
-              <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-4 shadow-lg">
-                EARN NOW
-              </Button>
-            </AdGate>
-          </div>
-        </Card>
       </div>
 
       <div className="space-y-4">

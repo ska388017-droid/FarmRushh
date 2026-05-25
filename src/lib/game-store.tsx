@@ -51,6 +51,11 @@ export interface UserState {
   energyRegenRate: number;
   adsWatched: number;
   cinemaAdsWatched: number;
+  lifetimeAds: number;
+  adStreak: number;
+  lastAdAt: number | null;
+  lastHourlyAdAt: number | null;
+  lotteryEntries: number;
   tasksCompleted: number;
   tier: Tier;
   lastWithdrawalAt: number | null;
@@ -69,6 +74,7 @@ export interface UserState {
   lastVaultClaimAt: number | null;
   comboStreak: number;
   claimedAdMilestones: string[];
+  unlockedChests: string[];
   inventory: {
     petFood: number;
     spinTickets: number;
@@ -82,6 +88,9 @@ interface GameContextType {
   upgrade: (upgradeId: string) => void;
   addCoins: (amount: number) => void;
   watchAd: (isCinema?: boolean) => void;
+  claimHourlyAdBonus: () => void;
+  enterAdLottery: () => void;
+  claimAdChest: (chestId: string, reward: number) => void;
   activateBoost: () => void;
   completeTask: (taskId: string) => void;
   claimAdMilestone: (milestoneId: string, rewardCoins: number, rewardTickets?: number) => void;
@@ -113,7 +122,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserState>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Migrations/Defaults for new properties
+        return {
+          ...parsed,
+          lifetimeAds: parsed.lifetimeAds || 0,
+          adStreak: parsed.adStreak || 0,
+          lastAdAt: parsed.lastAdAt || null,
+          lastHourlyAdAt: parsed.lastHourlyAdAt || null,
+          lotteryEntries: parsed.lotteryEntries || 0,
+          unlockedChests: parsed.unlockedChests || [],
+        };
+      }
     }
     return {
       id: "user_temp",
@@ -127,6 +148,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       energyRegenRate: 1,
       adsWatched: 0,
       cinemaAdsWatched: 0,
+      lifetimeAds: 0,
+      adStreak: 0,
+      lastAdAt: null,
+      lastHourlyAdAt: null,
+      lotteryEntries: 0,
       tasksCompleted: 0,
       tier: "Silver",
       lastWithdrawalAt: null,
@@ -144,6 +170,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastVaultClaimAt: null,
       comboStreak: 0,
       claimedAdMilestones: [],
+      unlockedChests: [],
       inventory: { petFood: 0, spinTickets: 0 }
     };
   });
@@ -277,14 +304,49 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }));
   
   const watchAd = (isCinema: boolean = false) => {
+    const now = Date.now();
+    setUser(u => {
+      // Streak logic: if last ad was < 5 mins ago, increment streak (max 10)
+      const lastAt = u.lastAdAt || 0;
+      const isStreaking = now - lastAt < 300000;
+      const newStreak = isStreaking ? Math.min(10, u.adStreak + 1) : 1;
+      
+      return {
+        ...u,
+        adsWatched: u.adsWatched + 1,
+        lifetimeAds: (u.lifetimeAds || 0) + 1,
+        adStreak: newStreak,
+        lastAdAt: now,
+        cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
+        ownReferralProgress: {
+          ...u.ownReferralProgress,
+          adsWatched: (u.ownReferralProgress?.adsWatched || 0) + 1
+        }
+      };
+    });
+  };
+
+  const claimHourlyAdBonus = () => {
+    const reward = 1000 + (user.adStreak * 200);
     setUser(u => ({
       ...u,
-      adsWatched: u.adsWatched + 1,
-      cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
-      ownReferralProgress: {
-        ...u.ownReferralProgress,
-        adsWatched: (u.ownReferralProgress?.adsWatched || 0) + 1
-      }
+      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
+      lastHourlyAdAt: Date.now()
+    }));
+  };
+
+  const enterAdLottery = () => {
+    setUser(u => ({
+      ...u,
+      lotteryEntries: (u.lotteryEntries || 0) + 1
+    }));
+  };
+
+  const claimAdChest = (chestId: string, reward: number) => {
+    setUser(u => ({
+      ...u,
+      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
+      unlockedChests: [...(u.unlockedChests || []), chestId]
     }));
   };
 
@@ -418,7 +480,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, claimAdMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
     }}>
       {children}
     </GameContext.Provider>

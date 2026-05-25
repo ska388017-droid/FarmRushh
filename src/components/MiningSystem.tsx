@@ -21,9 +21,10 @@ import {
   Clock,
   Lock,
   Skull,
-  MousePointer2,
   Dices,
-  Play
+  Play,
+  Timer,
+  ZapOff
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdGate } from "@/components/ads/AdGate";
@@ -31,7 +32,7 @@ import { toast } from "@/hooks/use-toast";
 import { LuckyFlip } from "@/components/LuckyFlip";
 
 export const MiningSystem = () => {
-  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost, refillEnergy, claimVault, addCoins } = useGame();
+  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost, refillEnergy, claimVault, addCoins, claimHourlyAdBonus } = useGame();
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; amount: number; isCritical: boolean }[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [boostTimeRemaining, setBoostTimeRemaining] = useState(0);
@@ -94,6 +95,7 @@ export const MiningSystem = () => {
   const isBoosted = boostTimeRemaining > 0;
 
   const vaultCooldown = user.lastVaultClaimAt ? Math.max(0, Math.ceil((user.lastVaultClaimAt + 3600000 - Date.now()) / 1000)) : 0;
+  const hourlyCooldown = user.lastHourlyAdAt ? Math.max(0, Math.ceil((user.lastHourlyAdAt + 3600000 - Date.now()) / 1000)) : 0;
 
   return (
     <div className="space-y-8 pb-24">
@@ -276,6 +278,41 @@ export const MiningSystem = () => {
                 WATCH
               </Button>
             </AdGate>
+          </div>
+        </Card>
+
+        {/* Hourly Ad Bonus */}
+        <Card className={cn(
+          "glass-morphism p-4 border-white/10 relative overflow-hidden group transition-all duration-500",
+          hourlyCooldown > 0 ? "opacity-50" : "hover:border-primary/40 border-dashed"
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                <Timer className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-tighter">Hourly Boost</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                  {hourlyCooldown > 0 ? `Ready in ${Math.ceil(hourlyCooldown / 60)}m` : `Claim ~${1000 + (user.adStreak * 200)} Coins`}
+                </p>
+              </div>
+            </div>
+            
+            {hourlyCooldown === 0 ? (
+              <AdGate actionName="Claim Hourly Bonus" onReward={() => {
+                claimHourlyAdBonus();
+                toast({ title: "Bonus Claimed!", description: "Check your wallet for hourly rewards." });
+              }}>
+                <Button size="sm" className="bg-primary text-white font-black text-[10px] h-9 rounded-xl px-4 shadow-lg">
+                  CLAIM
+                </Button>
+              </AdGate>
+            ) : (
+              <Badge variant="outline" className="border-white/10 text-muted-foreground text-[9px] px-3 h-8 flex items-center gap-1.5 font-black">
+                <Clock className="w-3 h-3" /> {Math.ceil(hourlyCooldown / 60)}M
+              </Badge>
+            )}
           </div>
         </Card>
 
