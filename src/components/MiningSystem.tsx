@@ -22,7 +22,8 @@ import {
   Lock,
   Skull,
   MousePointer2,
-  Dices
+  Dices,
+  Play
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdGate } from "@/components/ads/AdGate";
@@ -30,7 +31,7 @@ import { toast } from "@/hooks/use-toast";
 import { LuckyFlip } from "@/components/LuckyFlip";
 
 export const MiningSystem = () => {
-  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost, refillEnergy, claimVault } = useGame();
+  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost, refillEnergy, claimVault, addCoins } = useGame();
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; amount: number; isCritical: boolean }[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [boostTimeRemaining, setBoostTimeRemaining] = useState(0);
@@ -66,6 +67,7 @@ export const MiningSystem = () => {
       setBossHealth(prev => Math.max(0, prev - 2));
       if (bossHealth <= 2) {
         setIsBossEvent(false);
+        addCoins(10000);
         toast({ title: "Boss Defeated!", description: "You earned 10,000 bonus coins!" });
       }
     }
@@ -252,6 +254,32 @@ export const MiningSystem = () => {
 
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <Gift className="w-3 h-3" /> Quick Earning
+        </h3>
+        
+        <Card className="glass-morphism p-4 border-secondary/30 bg-secondary/5 relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-secondary/20 flex items-center justify-center border border-secondary/40">
+                <Play className="w-6 h-6 text-secondary" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-tighter">Watch & Earn</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Get 500 crystals instantly</p>
+              </div>
+            </div>
+            <AdGate actionName="Watch Ad for Coins" onReward={() => {
+              addCoins(500);
+              toast({ title: "Crystals Received!", description: "500 coins added to your wallet." });
+            }}>
+              <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-6 shadow-lg shadow-secondary/20">
+                WATCH
+              </Button>
+            </AdGate>
+          </div>
+        </Card>
+
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 pt-2 flex items-center gap-2">
           <Flame className="w-3 h-3" /> Quantum Boosters
         </h3>
         
