@@ -24,7 +24,11 @@ import {
   Dices,
   Play,
   Timer,
-  ZapOff
+  ZapOff,
+  BatteryMedium,
+  BatteryFull,
+  BatteryLow,
+  ZapIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdGate } from "@/components/ads/AdGate";
@@ -32,7 +36,7 @@ import { toast } from "@/hooks/use-toast";
 import { LuckyFlip } from "@/components/LuckyFlip";
 
 export const MiningSystem = () => {
-  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost, refillEnergy, claimVault, addCoins, claimHourlyAdBonus } = useGame();
+  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost, refillEnergy, claimVault, addCoins, secondsToNextEnergy } = useGame();
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; amount: number; isCritical: boolean }[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [boostTimeRemaining, setBoostTimeRemaining] = useState(0);
@@ -52,14 +56,22 @@ export const MiningSystem = () => {
     return () => clearInterval(timer);
   }, [user.boostEndTime]);
 
-  const coins = user?.wallet?.coins || 0;
   const energy = user?.energy || 0;
-  const maxEnergy = user?.maxEnergy || 1000;
+  const maxEnergy = user?.maxEnergy || 20;
   const drillLvl = user?.upgrades?.drill || 0;
   const autoLvl = user?.upgrades?.autominer || 0;
   const energyLvl = user?.upgrades?.energy_core || 0;
 
   const handleMine = (e: React.MouseEvent | React.TouchEvent) => {
+    if (energy < 1) {
+      toast({ 
+        variant: "destructive", 
+        title: "Energy Depleted", 
+        description: "Refill your core with an ad or wait for regeneration." 
+      });
+      return;
+    }
+
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const y = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
@@ -95,7 +107,14 @@ export const MiningSystem = () => {
   const isBoosted = boostTimeRemaining > 0;
 
   const vaultCooldown = user.lastVaultClaimAt ? Math.max(0, Math.ceil((user.lastVaultClaimAt + 3600000 - Date.now()) / 1000)) : 0;
-  const hourlyCooldown = user.lastHourlyAdAt ? Math.max(0, Math.ceil((user.lastHourlyAdAt + 3600000 - Date.now()) / 1000)) : 0;
+  
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const EnergyIcon = energy < (maxEnergy * 0.3) ? BatteryLow : energy < (maxEnergy * 0.8) ? BatteryMedium : BatteryFull;
 
   return (
     <div className="space-y-8 pb-24">
@@ -125,6 +144,42 @@ export const MiningSystem = () => {
           <p className="text-xl font-black text-white">{passiveIncome.toFixed(1)}<span className="text-[10px] ml-1 text-secondary">/ SEC</span></p>
         </Card>
       </div>
+
+      {/* Energy System UI */}
+      <Card className="glass-morphism border-secondary/30 bg-gradient-to-r from-secondary/5 to-transparent p-5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <EnergyIcon className="w-16 h-16 text-secondary" />
+        </div>
+        <div className="flex justify-between items-end mb-3">
+          <div className="space-y-1">
+            <h3 className="text-xs font-black text-white uppercase tracking-tighter flex items-center gap-2">
+              <Zap className="w-3 h-3 text-secondary animate-pulse" /> Energy Reserve
+            </h3>
+            <p className="text-2xl font-black text-secondary tabular-nums">
+              {Math.floor(energy)} <span className="text-xs text-muted-foreground">/ {maxEnergy}</span>
+            </p>
+          </div>
+          <div className="text-right">
+            {secondsToNextEnergy > 0 ? (
+              <p className="text-[9px] font-black text-muted-foreground uppercase mb-1">REGEN: {formatTime(secondsToNextEnergy)}</p>
+            ) : (
+              <p className="text-[9px] font-black text-secondary uppercase mb-1">CHARGED</p>
+            )}
+            <AdGate actionName="Refill Energy" onReward={() => {
+              refillEnergy();
+              toast({ title: "Energy Pulse", description: user.tier === "God Elite" ? "+2 Energy stabilized." : "+1 Energy stabilized." });
+            }}>
+              <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-8 rounded-lg shadow-lg px-4">
+                REFILL +{user.tier === "God Elite" ? '2' : '1'}
+              </Button>
+            </AdGate>
+          </div>
+        </div>
+        <Progress value={energyProgress} className="h-1.5 bg-white/5" />
+        {user.tier === "God Elite" && (
+          <p className="text-[8px] text-primary font-black uppercase mt-2 tracking-widest">VIP Buff: 5min Regen Active</p>
+        )}
+      </Card>
 
       <div className="relative flex flex-col items-center justify-center py-6">
         {isBossEvent && (
@@ -195,25 +250,6 @@ export const MiningSystem = () => {
             </span>
           </div>
         ))}
-
-        <div className="mt-8 w-full max-w-xs space-y-2">
-          <div className="flex justify-between items-center px-1">
-            <div className="flex items-center gap-1.5">
-              <CloudLightning className="w-3 h-3 text-secondary" />
-              <span className="text-[10px] font-black text-white/70 uppercase">Energy</span>
-            </div>
-            <AdGate actionName="Refill Energy" onReward={() => {
-              refillEnergy();
-              toast({ title: "Energy Refilled!", description: "Core re-stabilized at 100%." });
-            }}>
-              <Button variant="ghost" className="h-4 p-0 text-[8px] text-primary font-bold hover:bg-transparent">REFILL WITH AD</Button>
-            </AdGate>
-            <span className="text-[10px] font-black text-secondary tabular-nums">
-              {Math.floor(energy)} / {maxEnergy}
-            </span>
-          </div>
-          <Progress value={energyProgress} className="h-2 bg-white/5" />
-        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -225,7 +261,7 @@ export const MiningSystem = () => {
                </div>
                <div>
                   <p className="text-[10px] font-black text-white uppercase">Lucky Flip</p>
-                  <p className="text-[8px] text-muted-foreground uppercase font-bold">Try your luck</p>
+                  <p className="text-[8px] text-muted-foreground uppercase font-bold">1 Energy</p>
                </div>
             </div>
             <AdGate actionName="Play Lucky Flip" onReward={() => setShowLuckyFlip(true)}>
@@ -241,10 +277,14 @@ export const MiningSystem = () => {
                </div>
                <div>
                   <p className="text-[10px] font-black text-white uppercase">Daily Boss</p>
-                  <p className="text-[8px] text-muted-foreground uppercase font-bold">10k Bounty</p>
+                  <p className="text-[8px] text-muted-foreground uppercase font-bold">3 Energy</p>
                </div>
             </div>
             <AdGate actionName="Summon Boss" onReward={() => {
+              if (energy < 3) {
+                toast({ variant: "destructive", title: "Low Energy", description: "You need 3 energy to start mining boss." });
+                return;
+              }
               setIsBossEvent(true);
               setBossHealth(100);
               toast({ title: "Boss Summoned!", description: "Defeat the Cyber-Sentinel for big rewards!" });
@@ -267,12 +307,13 @@ export const MiningSystem = () => {
               </div>
               <div>
                 <p className="text-xs font-black text-white uppercase tracking-tighter">Watch & Earn</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">Get 500 crystals instantly</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">500 Crystals + 1 Energy</p>
               </div>
             </div>
             <AdGate actionName="Watch Ad for Coins" onReward={() => {
               addCoins(500);
-              toast({ title: "Crystals Received!", description: "500 coins added to your wallet." });
+              refillEnergy();
+              toast({ title: "Rewards Received!", description: "500 coins + 1 energy core stabilized." });
             }}>
               <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-6 shadow-lg shadow-secondary/20">
                 WATCH
@@ -280,120 +321,6 @@ export const MiningSystem = () => {
             </AdGate>
           </div>
         </Card>
-
-        {/* Hourly Ad Bonus */}
-        <Card className={cn(
-          "glass-morphism p-4 border-white/10 relative overflow-hidden group transition-all duration-500",
-          hourlyCooldown > 0 ? "opacity-50" : "hover:border-primary/40 border-dashed"
-        )}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                <Timer className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-white uppercase tracking-tighter">Hourly Boost</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">
-                  {hourlyCooldown > 0 ? `Ready in ${Math.ceil(hourlyCooldown / 60)}m` : `Claim ~${1000 + (user.adStreak * 200)} Coins`}
-                </p>
-              </div>
-            </div>
-            
-            {hourlyCooldown === 0 ? (
-              <AdGate actionName="Claim Hourly Bonus" onReward={() => {
-                claimHourlyAdBonus();
-                toast({ title: "Bonus Claimed!", description: "Check your wallet for hourly rewards." });
-              }}>
-                <Button size="sm" className="bg-primary text-white font-black text-[10px] h-9 rounded-xl px-4 shadow-lg">
-                  CLAIM
-                </Button>
-              </AdGate>
-            ) : (
-              <Badge variant="outline" className="border-white/10 text-muted-foreground text-[9px] px-3 h-8 flex items-center gap-1.5 font-black">
-                <Clock className="w-3 h-3" /> {Math.ceil(hourlyCooldown / 60)}M
-              </Badge>
-            )}
-          </div>
-        </Card>
-
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 pt-2 flex items-center gap-2">
-          <Flame className="w-3 h-3" /> Quantum Boosters
-        </h3>
-        
-        <div className="grid grid-cols-1 gap-3">
-          <Card className={cn(
-            "glass-morphism p-4 border-white/10 relative overflow-hidden group transition-all duration-500",
-            isBoosted ? "border-secondary/50 bg-secondary/10" : "hover:border-primary/40"
-          )}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
-                  isBoosted ? "bg-secondary/20 border-secondary/40 animate-pulse" : "bg-white/5 border-white/10"
-                )}>
-                  <Flame className={cn("w-6 h-6", isBoosted ? "text-secondary" : "text-muted-foreground")} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-white uppercase tracking-tighter">
-                    {isBoosted ? "Boost Active" : "2X Mining Multiplier"}
-                  </p>
-                  <p className={cn("text-[9px] uppercase font-bold", isBoosted ? "text-secondary" : "text-muted-foreground")}>
-                    {isBoosted ? `${boostTimeRemaining}s Remaining` : "Double your taps for 60s"}
-                  </p>
-                </div>
-              </div>
-              
-              {!isBoosted ? (
-                <AdGate actionName="Activate 2X Boost" onReward={() => {
-                  activateBoost();
-                  toast({ title: "Boost Activated!", description: "Mining power doubled for 60 seconds." });
-                }}>
-                  <Button size="sm" className="bg-primary text-white font-black text-[10px] h-9 rounded-xl px-4 shadow-lg shadow-primary/20">
-                    ACTIVATE
-                  </Button>
-                </AdGate>
-              ) : (
-                <Badge className="bg-secondary/20 text-secondary border-secondary/30 text-[9px] px-3 h-8 flex items-center gap-1.5 font-black">
-                  <Clock className="w-3 h-3" /> {boostTimeRemaining}S
-                </Badge>
-              )}
-            </div>
-          </Card>
-
-          <Card className={cn(
-            "glass-morphism p-4 border-white/10 relative overflow-hidden group transition-all duration-500",
-            vaultCooldown > 0 ? "opacity-50" : "hover:border-secondary/40"
-          )}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20">
-                  {vaultCooldown > 0 ? <Lock className="w-6 h-6 text-muted-foreground" /> : <Package className="w-6 h-6 text-secondary" />}
-                </div>
-                <div>
-                  <p className="text-xs font-black text-white uppercase tracking-tighter">Secret Vault</p>
-                  <p className="text-[9px] text-muted-foreground uppercase font-bold">
-                    {vaultCooldown > 0 ? `Ready in ${Math.ceil(vaultCooldown / 60)}m` : "Mystery treasure inside"}
-                  </p>
-                </div>
-              </div>
-              
-              {vaultCooldown === 0 ? (
-                <AdGate actionName="Claim Secret Vault" onReward={() => {
-                  claimVault();
-                  toast({ title: "Vault Unlocked!", description: "You found extra CyberCoins!" });
-                }}>
-                  <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-4 shadow-lg">
-                    UNLOCK
-                  </Button>
-                </AdGate>
-              ) : (
-                <Badge variant="outline" className="border-white/10 text-muted-foreground text-[9px] px-3 h-8 flex items-center gap-1.5 font-black">
-                  <Clock className="w-3 h-3" /> {Math.ceil(vaultCooldown / 60)}M
-                </Badge>
-              )}
-            </div>
-          </Card>
-        </div>
 
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 pt-2 flex items-center gap-2">
           <Package className="w-3 h-3" /> System Upgrades
@@ -407,7 +334,7 @@ export const MiningSystem = () => {
             benefit={`+2 Coins / Tap`}
             cost={Math.floor(100 * Math.pow(1.5, drillLvl))}
             onUpgrade={() => upgrade('drill')}
-            canAfford={coins >= Math.floor(100 * Math.pow(1.5, drillLvl))}
+            canAfford={user.wallet.coins >= Math.floor(100 * Math.pow(1.5, drillLvl))}
           />
           <UpgradeCard 
             id="autominer" 
@@ -417,17 +344,17 @@ export const MiningSystem = () => {
             benefit={`+2 Coins / Sec`}
             cost={Math.floor(500 * Math.pow(1.5, autoLvl))}
             onUpgrade={() => upgrade('autominer')}
-            canAfford={coins >= Math.floor(500 * Math.pow(1.5, autoLvl))}
+            canAfford={user.wallet.coins >= Math.floor(500 * Math.pow(1.5, autoLvl))}
           />
           <UpgradeCard 
             id="energy_core" 
             name="Energy Core" 
             level={energyLvl} 
             icon={Zap}
-            benefit={`+50 Max Energy`}
+            benefit={`+2 Max Energy`}
             cost={Math.floor(300 * Math.pow(1.5, energyLvl))}
             onUpgrade={() => upgrade('energy_core')}
-            canAfford={coins >= Math.floor(300 * Math.pow(1.5, energyLvl))}
+            canAfford={user.wallet.coins >= Math.floor(300 * Math.pow(1.5, energyLvl))}
           />
         </div>
       </div>

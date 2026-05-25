@@ -49,6 +49,7 @@ export interface UserState {
   energy: number;
   maxEnergy: number;
   energyRegenRate: number;
+  lastEnergyRegenAt: number;
   adsWatched: number;
   cinemaAdsWatched: number;
   lifetimeAds: number;
@@ -91,36 +92,39 @@ interface GameContextType {
   watchAd: (isCinema?: boolean) => void;
   claimHourlyAdBonus: () => void;
   enterAdLottery: () => void;
-  claimAdChest: (chestId: string, reward: number) => void;
+  claimAdChest: (chestId: string, reward: number) => boolean;
   activateBoost: () => void;
   completeTask: (taskId: string) => void;
   claimAdMilestone: (milestoneId: string, rewardCoins: number, rewardTickets?: number) => void;
   claimReferralMilestone: (milestoneId: string, rewardCoins: number) => void;
   registerWithdrawal: (method: string, address: string, coins: number, usdt: number) => void;
   claimReferralReward: (targetUid: string) => void;
-  claimOfflineEarnings: (triple: boolean) => void;
+  claimOfflineEarnings: (triple: boolean) => boolean;
   getMiningPower: () => number;
   getPassiveIncome: () => number;
   refillEnergy: () => void;
   claimVault: () => void;
   feedPet: () => void;
   incrementStreak: () => void;
+  secondsToNextEnergy: number;
 }
 
 const UPGRADES: Upgrade[] = [
   { id: 'drill', name: 'Nano Drill', baseCost: 100, baseBenefit: 1, type: 'tap' },
   { id: 'autominer', name: 'Auto-Miner', baseCost: 500, baseBenefit: 2, type: 'passive' },
-  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 50, type: 'tap' },
+  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 2, type: 'tap' },
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v1';
+const STORAGE_KEY = 'farmrush_user_v2';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const db = useFirestore();
   const [offlineEarnings, setOfflineEarnings] = useState(0);
+  const [secondsToNextEnergy, setSecondsToNextEnergy] = useState(0);
+  
   const [user, setUser] = useState<UserState>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -128,13 +132,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved);
         return {
           ...parsed,
-          lifetimeAds: parsed.lifetimeAds || 0,
-          adStreak: parsed.adStreak || 0,
-          lastAdAt: parsed.lastAdAt || null,
-          lastHourlyAdAt: parsed.lastHourlyAdAt || null,
-          lotteryEntries: parsed.lotteryEntries || 0,
-          unlockedChests: parsed.unlockedChests || [],
-          claimedReferralMilestones: parsed.claimedReferralMilestones || [],
+          energy: parsed.energy ?? 20,
+          maxEnergy: parsed.maxEnergy ?? 20,
+          lastEnergyRegenAt: parsed.lastEnergyRegenAt ?? Date.now(),
         };
       }
     }
@@ -145,9 +145,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wallet: { coins: 1000, usdt: 0, ton: 0, bnb: 0 },
       xp: 0,
       level: 1,
-      energy: 1000,
-      maxEnergy: 1000,
+      energy: 20,
+      maxEnergy: 20,
       energyRegenRate: 1,
+      lastEnergyRegenAt: Date.now(),
       adsWatched: 0,
       cinemaAdsWatched: 0,
       lifetimeAds: 0,
@@ -201,11 +202,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
     const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
 
-    setUser(u => ({
-      ...u,
-      uid: u.uid === "CN000000" ? generatedUid : u.uid,
-      referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode
-    }));
+    setUser(u => {
+      const isVip = u.tier === "God Elite";
+      const maxCap = isVip ? 50 : 20;
+      return {
+        ...u,
+        uid: u.uid === "CN000000" ? generatedUid : u.uid,
+        referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
+        maxEnergy: maxCap + (u.upgrades.energy_core * 2)
+      };
+    });
 
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
@@ -227,11 +233,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const interval = setInterval(() => {
+      const now = Date.now();
       setUser(u => {
         const passiveIncome = getPassiveIncome();
         const coinsAdded = (passiveIncome / 10);
-        const newEnergy = Math.min(u.maxEnergy, u.energy + u.energyRegenRate / 10);
         
+        // Energy Regen Logic
+        const isVip = u.tier === "God Elite";
+        const regenIntervalMs = isVip ? 300000 : 900000; // 5m vs 15m
+        const elapsedSinceRegen = now - u.lastEnergyRegenAt;
+        
+        let newEnergy = u.energy;
+        let newRegenAt = u.lastEnergyRegenAt;
+        
+        if (elapsedSinceRegen >= regenIntervalMs && u.energy < u.maxEnergy) {
+          const energyToGain = Math.floor(elapsedSinceRegen / regenIntervalMs);
+          newEnergy = Math.min(u.maxEnergy, u.energy + energyToGain);
+          newRegenAt = now - (elapsedSinceRegen % regenIntervalMs);
+        }
+
+        const remainingSeconds = Math.max(0, Math.ceil((regenIntervalMs - (now - newRegenAt)) / 1000));
+        setSecondsToNextEnergy(u.energy >= u.maxEnergy ? 0 : remainingSeconds);
+
         return {
           ...u,
           wallet: {
@@ -239,10 +262,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             coins: (u.wallet?.coins || 0) + coinsAdded
           },
           energy: newEnergy,
-          lastPassiveCollection: Date.now()
+          lastEnergyRegenAt: newRegenAt,
+          lastPassiveCollection: now
         };
       });
-    }, 100);
+    }, 1000);
     return () => clearInterval(interval);
   }, [getPassiveIncome]);
 
@@ -345,11 +369,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const claimAdChest = (chestId: string, reward: number) => {
+    if (user.energy < 2) return false;
     setUser(u => ({
       ...u,
       wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
+      energy: u.energy - 2,
       unlockedChests: [...(u.unlockedChests || []), chestId]
     }));
+    return true;
   };
 
   const activateBoost = () => {
@@ -360,10 +387,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refillEnergy = () => {
-    setUser(u => ({
-      ...u,
-      energy: u.maxEnergy
-    }));
+    setUser(u => {
+      const isVip = u.tier === "God Elite";
+      const increment = isVip ? 2 : 1;
+      return {
+        ...u,
+        energy: Math.min(u.maxEnergy, u.energy + increment)
+      };
+    });
   };
 
   const claimVault = () => {
@@ -486,14 +517,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const claimOfflineEarnings = (triple: boolean) => {
+    if (user.energy < 1) return false;
     const finalAmount = triple ? offlineEarnings * 3 : offlineEarnings;
     addCoins(finalAmount);
+    setUser(u => ({ ...u, energy: u.energy - 1 }));
     setOfflineEarnings(0);
+    return true;
   };
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak, secondsToNextEnergy
     }}>
       {children}
     </GameContext.Provider>

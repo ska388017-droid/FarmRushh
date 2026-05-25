@@ -7,14 +7,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Coins, Zap, Timer, TrendingUp } from "lucide-react";
 import { AdGate } from "@/components/ads/AdGate";
+import { toast } from "@/hooks/use-toast";
 
 export const OfflineEarningsModal = () => {
-  const { offlineEarnings, claimOfflineEarnings } = useGame();
+  const { offlineEarnings, claimOfflineEarnings, user } = useGame();
 
   if (offlineEarnings <= 0) return null;
 
+  const handleClaim = (triple: boolean) => {
+    if (user.energy < 1) {
+      toast({ variant: "destructive", title: "Low Energy", description: "You need 1 energy to sync offline rewards." });
+      return;
+    }
+    claimOfflineEarnings(triple);
+  };
+
   return (
-    <Dialog open={offlineEarnings > 0} onOpenChange={() => claimOfflineEarnings(false)}>
+    <Dialog open={offlineEarnings > 0} onOpenChange={() => handleClaim(false)}>
       <DialogContent className="max-w-[320px] rounded-3xl glass-morphism border-primary/30 p-0 overflow-hidden bg-background">
         <div className="relative p-6 text-center space-y-6">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-primary animate-pulse" />
@@ -43,7 +52,7 @@ export const OfflineEarningsModal = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-3">
-            <AdGate actionName="Triple Offline Earnings" onReward={() => claimOfflineEarnings(true)}>
+            <AdGate actionName="Triple Offline Earnings" onReward={() => handleClaim(true)}>
               <Button className="w-full bg-secondary text-secondary-foreground font-black h-12 rounded-xl group relative overflow-hidden shadow-lg shadow-secondary/20">
                 <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 <Zap className="w-4 h-4 mr-2" /> TRIPLE TO { (offlineEarnings * 3).toLocaleString() }
@@ -51,10 +60,10 @@ export const OfflineEarningsModal = () => {
             </AdGate>
             <Button 
               variant="ghost" 
-              onClick={() => claimOfflineEarnings(false)}
+              onClick={() => handleClaim(false)}
               className="text-muted-foreground hover:text-white font-bold text-[10px] uppercase tracking-widest"
             >
-              Claim Standard
+              Claim Standard (1 Energy)
             </Button>
           </div>
         </div>

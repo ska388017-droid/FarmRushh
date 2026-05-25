@@ -33,7 +33,7 @@ import { AdGate } from "@/components/ads/AdGate";
 import { cn } from "@/lib/utils";
 
 export const Tasks = () => {
-  const { addCoins, completeTask, claimAdMilestone, enterAdLottery, claimAdChest, user, watchAd } = useGame();
+  const { addCoins, completeTask, claimAdMilestone, enterAdLottery, claimAdChest, user, watchAd, refillEnergy } = useGame();
 
   const handleTask = (taskId: string, coins: number) => {
     const isCompleted = taskId === "tg_join" ? user.ownReferralProgress.tgJoined : taskId === "ig_follow" ? user.ownReferralProgress.igFollowed : false;
@@ -116,7 +116,8 @@ export const Tasks = () => {
                 <AdGate actionName="Watch Cinema Premiere" onReward={() => {
                   watchAd(true);
                   addCoins(1000);
-                  toast({ title: "Premiere Complete", description: "+1,000 Coins Received!" });
+                  refillEnergy();
+                  toast({ title: "Premiere Complete", description: "+1,000 Coins & +1 Energy Received!" });
                 }}>
                   <Button className="flex-1 bg-primary hover:bg-primary/80 text-white font-black h-12 rounded-xl shadow-lg shadow-primary/20">
                     <Ticket className="w-4 h-4 mr-2" /> WATCH PREMIERE
@@ -144,6 +145,7 @@ export const Tasks = () => {
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
           <Box className="w-3 h-3 text-secondary" /> Video Chests
         </h3>
+        <p className="text-[8px] text-muted-foreground uppercase font-black px-1 -mt-2">Cost: 2 Energy per Chest</p>
         <div className="grid grid-cols-3 gap-3">
           {videoChests.map((chest) => {
             const isUnlocked = user.unlockedChests?.includes(chest.id);
@@ -163,8 +165,12 @@ export const Tasks = () => {
                    <p className="text-[7px] text-secondary font-bold">+{chest.reward} C</p>
                 </div>
                 <AdGate actionName={`Open ${chest.name}`} onReward={() => {
-                  claimAdChest(chest.id, chest.reward);
-                  toast({ title: "Chest Opened!", description: `Received ${chest.reward} coins.` });
+                  const success = claimAdChest(chest.id, chest.reward);
+                  if (success) {
+                    toast({ title: "Chest Opened!", description: `Received ${chest.reward} coins.` });
+                  } else {
+                    toast({ variant: "destructive", title: "Low Energy", description: "You need 2 energy to open chests." });
+                  }
                 }}>
                   <Button size="sm" disabled={isUnlocked} className="h-6 text-[8px] w-full font-black rounded-md">
                     {isUnlocked ? "DONE" : "OPEN"}
@@ -190,7 +196,8 @@ export const Tasks = () => {
           </div>
           <AdGate actionName="Enter Lottery" onReward={() => {
             enterAdLottery();
-            toast({ title: "Entry Verified!", description: "You've been entered into the daily draw." });
+            refillEnergy();
+            toast({ title: "Entry Verified!", description: "Entries: " + (user.lotteryEntries + 1) + " | +1 Energy gained." });
           }}>
             <Button className="bg-primary text-white font-black h-10 px-6 rounded-xl shadow-lg">
               {user.lotteryEntries > 0 ? `ENTRIES: ${user.lotteryEntries}` : "JOIN"}
