@@ -1,7 +1,6 @@
-
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/game-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,8 @@ import {
   Lock,
   ArrowUpCircle,
   ExternalLink,
-  Loader2
+  Loader2,
+  Timer
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AdGate } from "@/components/ads/AdGate";
@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 
 export const Tasks = () => {
   const { addCoins, completeTask, updateTaskStatus, claimAdMilestone, claimAdChest, enterAdLottery, user, watchAd, refillEnergy } = useGame();
+  const [timers, setTimers] = useState<Record<string, string>>({});
 
   const handleTaskAction = (taskId: string, url: string, reward: number) => {
     const status = user.socialTasks[taskId] || 'not_started';
@@ -43,7 +44,6 @@ export const Tasks = () => {
     if (status === 'completed') return;
 
     if (status === 'not_started') {
-      // Step 1: Redirect to link
       toast({ title: "Redirecting...", description: "Join our community to qualify for rewards." });
       
       const tg = (window as any).Telegram?.WebApp;
@@ -53,13 +53,11 @@ export const Tasks = () => {
         window.open(url, "_blank");
       }
 
-      // Mark as opened
       updateTaskStatus(taskId, 'opened');
       return;
     }
 
     if (status === 'opened') {
-      // Step 2: User returns and claims
       completeTask(taskId, reward);
       toast({ title: "Task Validated", description: `+${reward.toLocaleString()} CyberCoins added to vault!` });
     }
@@ -74,9 +72,9 @@ export const Tasks = () => {
   ];
 
   const videoChests = [
-    { id: "chest_1", name: "Silver Node", reward: 2500, ads: 1 },
-    { id: "chest_2", name: "Gold Cache", reward: 7500, ads: 3 },
-    { id: "chest_3", name: "Cyber Vault", reward: 20000, ads: 7 },
+    { id: "chest_1", name: "Silver Node", reward: 500, ads: 1 },
+    { id: "chest_2", name: "Gold Cache", reward: 1000, ads: 3 },
+    { id: "chest_3", name: "Cyber Vault", reward: 1500, ads: 7 },
   ];
 
   const socialTasks = [
@@ -108,6 +106,32 @@ export const Tasks = () => {
       url: "https://youtube.com/@FarmRushOfficial"
     },
   ];
+
+  useEffect(() => {
+    const updateTimers = () => {
+      const now = Date.now();
+      const newTimers: Record<string, string> = {};
+      
+      videoChests.forEach(chest => {
+        const lastClaim = user.lastChestClaims?.[chest.id] || 0;
+        const oneDay = 24 * 60 * 60 * 1000;
+        const diff = (lastClaim + oneDay) - now;
+        
+        if (diff > 0) {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          newTimers[chest.id] = `${hours}h ${minutes}m ${seconds}s`;
+        }
+      });
+      
+      setTimers(newTimers);
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    return () => clearInterval(interval);
+  }, [user.lastChestClaims]);
 
   const cinemaProgress = Math.min(100, ((user.cinemaAdsWatched || 0) / 5) * 100);
   const canClaimPremiere = (user.cinemaAdsWatched || 0) >= 5 && !user.claimedAdMilestones?.includes("cinema_daily");
@@ -238,39 +262,50 @@ export const Tasks = () => {
 
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <Box className="w-3 h-3 text-secondary" /> Video Chests
+          <Box className="w-3 h-3 text-secondary" /> Daily Resource Nodes
         </h3>
-        <p className="text-[8px] text-muted-foreground uppercase font-black px-1 -mt-2">Cost: 15 Energy per Chest</p>
+        <p className="text-[8px] text-muted-foreground uppercase font-black px-1 -mt-2">Limit: Once per 24h | Cost: 15 Energy</p>
         <div className="grid grid-cols-3 gap-3">
           {videoChests.map((chest) => {
-            const isUnlocked = user.unlockedChests?.includes(chest.id);
+            const cooldownTimer = timers[chest.id];
+            const isClaimedToday = !!cooldownTimer;
+            
             return (
               <Card key={chest.id} className={cn(
-                "glass-morphism p-3 flex flex-col items-center gap-2 border-white/5 transition-all",
-                isUnlocked ? "opacity-40 grayscale" : "hover:border-secondary/40"
+                "glass-morphism p-3 flex flex-col items-center gap-2 border-white/5 transition-all relative group overflow-hidden",
+                isClaimedToday ? "opacity-60 grayscale bg-black/20" : "hover:border-secondary/40 animate-in fade-in"
               )}>
                 <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center border",
-                  isUnlocked ? "bg-white/5" : "bg-secondary/10 border-secondary/20"
+                  "w-12 h-12 rounded-xl flex items-center justify-center border transition-all duration-500",
+                  isClaimedToday ? "bg-white/5 border-white/5" : "bg-secondary/10 border-secondary/20 shadow-[0_0_15px_rgba(57,255,20,0.1)] group-hover:scale-110"
                 )}>
-                  {isUnlocked ? <Lock className="w-6 h-6 text-muted-foreground" /> : <Box className="w-6 h-6 text-secondary animate-bounce" />}
+                  {isClaimedToday ? <Lock className="w-6 h-6 text-muted-foreground/50" /> : <Box className="w-6 h-6 text-secondary animate-bounce" />}
                 </div>
-                <div className="text-center space-y-0.5">
+                
+                <div className="text-center space-y-0.5 z-10">
                    <p className="text-[8px] font-black text-white uppercase truncate">{chest.name}</p>
-                   <p className="text-[7px] text-secondary font-bold">+{chest.reward} C</p>
+                   <p className="text-[7px] text-secondary font-black tracking-widest">+{chest.reward} C</p>
                 </div>
-                <AdGate actionName={`Open ${chest.name}`} onReward={() => {
-                  const success = claimAdChest(chest.id, chest.reward);
-                  if (success) {
-                    toast({ title: "Chest Opened!", description: `Received ${chest.reward} coins.` });
-                  } else {
-                    toast({ variant: "destructive", title: "Low Energy", description: "You need 15 energy to open chests." });
-                  }
-                }}>
-                  <Button size="sm" disabled={isUnlocked} className="h-6 text-[8px] w-full font-black rounded-md">
-                    {isUnlocked ? "DONE" : "OPEN"}
-                  </Button>
-                </AdGate>
+
+                {isClaimedToday ? (
+                  <div className="w-full space-y-1 mt-2">
+                    <p className="text-[7px] font-black text-secondary uppercase text-center">Claimed Today</p>
+                    <div className="flex items-center justify-center gap-1 text-[6px] text-muted-foreground font-mono bg-black/30 py-0.5 rounded-sm">
+                      <Timer className="w-2 h-2" /> {cooldownTimer}
+                    </div>
+                  </div>
+                ) : (
+                  <AdGate actionName={`Unlock ${chest.name}`} onReward={() => {
+                    const success = claimAdChest(chest.id, chest.reward);
+                    if (success) {
+                      toast({ title: "Node Depleted", description: `Recovered ${chest.reward} coins from vault.` });
+                    }
+                  }}>
+                    <Button size="sm" className="h-7 text-[8px] w-full font-black rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 mt-1 shadow-lg shadow-secondary/20">
+                      EXTRACT
+                    </Button>
+                  </AdGate>
+                )}
               </Card>
             );
           })}

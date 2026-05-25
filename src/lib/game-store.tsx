@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
@@ -81,7 +80,8 @@ export interface UserState {
   comboStreak: number;
   claimedAdMilestones: string[];
   claimedReferralMilestones: string[];
-  unlockedChests: string[];
+  unlockedChests: string[]; // Deprecated, using lastChestClaims
+  lastChestClaims: Record<string, number>;
   lastDailyRewardAt: number | null;
   inventory: {
     petFood: number;
@@ -124,7 +124,7 @@ const UPGRADES: Upgrade[] = [
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v6';
+const STORAGE_KEY = 'farmrush_user_v7';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -178,6 +178,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimedAdMilestones: [],
       claimedReferralMilestones: [],
       unlockedChests: [],
+      lastChestClaims: {},
       lastDailyRewardAt: null,
       inventory: { petFood: 0, spinTickets: 0 }
     };
@@ -397,11 +398,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
+  
   const claimAdChest = (id: string, r: number) => {
-    if (user.energy < 15) return false;
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, energy: u.energy - 15, unlockedChests: [...u.unlockedChests, id] }));
+    const now = Date.now();
+    const lastClaim = user.lastChestClaims?.[id] || 0;
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    if (now - lastClaim < oneDay) {
+      toast({ title: "Cooldown Active", description: "This node is recharging. Try again tomorrow." });
+      return false;
+    }
+
+    if (user.energy < 15) {
+      toast({ variant: "destructive", title: "Low Energy", description: "You need 15 energy for extraction." });
+      return false;
+    }
+
+    setUser(u => ({ 
+      ...u, 
+      wallet: { ...u.wallet, coins: u.wallet.coins + r }, 
+      energy: u.energy - 15, 
+      lastChestClaims: { ...(u.lastChestClaims || {}), [id]: now } 
+    }));
     return true;
   };
+
   const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
   const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
   const claimReferralMilestone = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
