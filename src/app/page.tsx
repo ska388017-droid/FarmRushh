@@ -10,23 +10,31 @@ import { WalletSystem } from "@/components/WalletSystem";
 import { Tasks } from "@/components/Tasks";
 import { Profile } from "@/components/Profile";
 import { ReferralSystem } from "@/components/ReferralSystem";
+import { VIPCenter } from "@/components/VIPCenter";
 import { Toaster } from "@/components/ui/toaster";
 import { Badge } from "@/components/ui/badge";
-import { Diamond, Bell } from "lucide-react";
+import { Diamond, Bell, Crown } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OfflineEarningsModal } from "@/components/OfflineEarningsModal";
+import { cn } from "@/lib/utils";
 
 const AppContent = () => {
   const [activeTab, setActiveTab] = useState("mining");
   const { user } = useGame();
 
   const coins = user?.wallet?.coins || 0;
+  const isVip = user?.vipStatus && user.vipStatus !== "none";
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24 max-w-md mx-auto relative px-4">
       <header className="py-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-primary to-secondary p-[2px]">
+          <div className={cn(
+            "w-11 h-11 rounded-full p-[2px]",
+            isVip 
+              ? "bg-gradient-to-tr from-amber-400 via-yellow-200 to-amber-600 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]" 
+              : "bg-gradient-to-tr from-primary to-secondary"
+          )}>
             <Avatar className="w-full h-full border-2 border-background">
               <AvatarImage src={user?.avatarUrl} />
               <AvatarFallback className="bg-muted text-primary text-xs font-black">
@@ -37,6 +45,11 @@ const AppContent = () => {
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
                <p className="text-[10px] text-muted-foreground font-black tracking-widest uppercase">ID: {user?.uid || "-------"}</p>
+               {isVip && (
+                 <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[7px] px-1 h-3 font-black uppercase tracking-tighter">
+                   <Crown className="w-2 h-2 mr-0.5" /> {user.vipStatus}
+                 </Badge>
+               )}
             </div>
             <p className="text-sm font-black tracking-tight flex items-center gap-1">
               {user?.username || "Operator"}
@@ -60,6 +73,7 @@ const AppContent = () => {
         {activeTab === "mining" && <MiningSystem />}
         {activeTab === "tasks" && <Tasks />}
         {activeTab === "friends" && <ReferralSystem />}
+        {activeTab === "vip" && <VIPCenter />}
         {activeTab === "wallet" && <WalletSystem />}
         {activeTab === "profile" && <Profile />}
       </section>
