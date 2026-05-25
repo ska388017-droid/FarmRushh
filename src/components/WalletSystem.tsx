@@ -5,7 +5,6 @@ import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/game-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Wallet, 
   ArrowUpRight, 
@@ -16,7 +15,8 @@ import {
   ChevronRight,
   TrendingUp,
   CreditCard,
-  Crown
+  Crown,
+  ShieldCheck
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -65,8 +65,14 @@ export const WalletSystem = () => {
       toast({ title: "Insufficient Coins", variant: "destructive" });
       return;
     }
+    
+    // VIP Benefit: Higher withdrawal limit or priority review
+    const isVip = user.vipStatus !== "none";
     registerWithdrawal(network, address, selectedTier.coins, selectedTier.usdt);
-    toast({ title: "Success", description: "Withdrawal request submitted for review." });
+    toast({ 
+      title: isVip ? "Priority Request Sent" : "Success", 
+      description: isVip ? "VIP status grants you priority review (12-24h)." : "Withdrawal request submitted for review (24-72h)." 
+    });
     setAddress("");
     setSelectedTier(null);
   };

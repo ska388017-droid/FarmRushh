@@ -20,7 +20,8 @@ import {
   ExternalLink,
   ChevronRight,
   Flame,
-  Star
+  Star,
+  Gift
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -37,10 +38,13 @@ const VIP_PLANS = [
     duration: 30, 
     color: "from-slate-400 to-slate-600",
     glow: "rgba(148, 163, 184, 0.3)",
+    roi: "Earn ~$10+ in 30 days",
     perks: [
-      "+50% Tap Power",
-      "+20% Passive Income",
+      "+150% Tap Power",
+      "+150% Passive Income",
       "2,500 Max Energy",
+      "Daily Reward: 15,000 Coins",
+      "Priority Payout Review",
       "Silver Profile Badge"
     ] 
   },
@@ -51,11 +55,13 @@ const VIP_PLANS = [
     duration: 30, 
     color: "from-amber-400 to-amber-600",
     glow: "rgba(245, 158, 11, 0.4)",
+    roi: "Earn ~$35+ in 30 days",
     perks: [
-      "+100% Tap Power",
-      "+50% Passive Income",
+      "+350% Tap Power",
+      "+300% Passive Income",
       "5,000 Max Energy",
-      "Priority Review Payouts",
+      "Daily Reward: 40,000 Coins",
+      "Instant Payout Review",
       "Gold Profile Badge"
     ] 
   },
@@ -66,19 +72,20 @@ const VIP_PLANS = [
     duration: 30, 
     color: "from-cyan-400 to-cyan-600",
     glow: "rgba(34, 211, 238, 0.5)",
+    roi: "Earn ~$100+ in 30 days",
     perks: [
-      "+200% Tap Power",
-      "+100% Passive Income",
+      "+900% Tap Power",
+      "+700% Passive Income",
       "10,000 Max Energy",
-      "+2 Energy per Ad",
-      "Diamond Profile Badge",
-      "Exclusive Boss Drops"
+      "Daily Reward: 100,000 Coins",
+      "Exclusive Boss Drops",
+      "Diamond Profile Badge"
     ] 
   },
 ];
 
 export const VIPCenter = () => {
-  const { user, submitVIPRequest } = useGame();
+  const { user, submitVIPRequest, claimDailyReward } = useGame();
   const [selectedVIP, setSelectedVIP] = useState<any>(null);
   const [txHash, setTxHash] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,9 +132,26 @@ export const VIPCenter = () => {
             VIP CENTER
           </h2>
           <p className="text-[10px] text-amber-500/70 font-black uppercase tracking-[0.3em]">
-            Elevate Your Status
+            Investment Mining Protocol
           </p>
         </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1 flex items-center gap-2">
+          <Gift className="w-3 h-3 text-secondary" /> Daily Operative Reward
+        </h3>
+        <Card className="glass-morphism p-5 border-secondary/30 bg-secondary/5">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-[9px] text-muted-foreground uppercase font-black">Ready for Collection</p>
+              <p className="text-sm font-black text-white">Daily VIP Bonus Available</p>
+            </div>
+            <Button onClick={claimDailyReward} size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] rounded-xl px-4">
+              CLAIM NOW
+            </Button>
+          </div>
+        </Card>
       </div>
 
       {isVip && (
@@ -147,7 +171,6 @@ export const VIPCenter = () => {
         </Card>
       )}
 
-      {/* Plan Cards */}
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1 flex items-center gap-2">
           <Star className="w-3 h-3 text-amber-500" /> Available Operations
@@ -159,10 +182,15 @@ export const VIPCenter = () => {
           )}>
             <div className={cn("h-1.5 w-full bg-gradient-to-r", plan.color)} />
             <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
+              <div className="flex justify-between items-start mb-2">
                 <div>
                   <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">{plan.name}</h4>
-                  <p className="text-[10px] text-secondary font-black uppercase tracking-widest">{plan.price} USDT / 30 DAYS</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[10px] text-secondary font-black uppercase tracking-widest">{plan.price} USDT / 30 DAYS</p>
+                    <Badge variant="outline" className="text-[8px] border-secondary/20 text-secondary uppercase px-1 h-4">
+                      {plan.roi}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">
                   <Crown className={cn("w-5 h-5", plan.id === 'Diamond' ? 'text-cyan-400' : plan.id === 'Gold' ? 'text-amber-400' : 'text-slate-400')} />
@@ -252,16 +280,15 @@ export const VIPCenter = () => {
         ))}
       </div>
 
-      {/* Info Section */}
       <Card className="glass-morphism p-5 border-white/5 bg-gradient-to-r from-white/5 to-transparent">
         <div className="flex items-center gap-3 mb-3">
           <Info className="w-4 h-4 text-primary" />
-          <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Verification Protocol</h4>
+          <h4 className="text-[10px] font-black text-white uppercase tracking-widest">Earning Protocol</h4>
         </div>
         <div className="space-y-2 text-[9px] text-muted-foreground font-medium leading-relaxed">
-          <p>• All VIP purchases are manually verified by our security team via blockchain ledger.</p>
-          <p>• Activation usually takes <span className="text-secondary">2 to 24 hours</span> after submission.</p>
-          <p>• Ensure you provide the correct TXID. Duplicate or fake claims will result in permanent suspension.</p>
+          <p>• VIP members enjoy significantly higher mining power and passive income yields.</p>
+          <p>• Daily Rewards are unlocked exclusively for active operatives.</p>
+          <p>• Total earning potential is designed to exceed the investment cost through consistent activity.</p>
         </div>
       </Card>
     </div>

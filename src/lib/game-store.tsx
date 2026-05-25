@@ -80,6 +80,7 @@ export interface UserState {
   claimedAdMilestones: string[];
   claimedReferralMilestones: string[];
   unlockedChests: string[];
+  lastDailyRewardAt: number | null;
   inventory: {
     petFood: number;
     spinTickets: number;
@@ -104,6 +105,7 @@ interface GameContextType {
   submitVIPRequest: (plan: VIPPlan, txHash: string, price: number) => Promise<boolean>;
   claimReferralReward: (targetUid: string) => void;
   claimOfflineEarnings: (triple: boolean) => boolean;
+  claimDailyReward: () => void;
   getMiningPower: () => number;
   getPassiveIncome: () => number;
   refillEnergy: () => void;
@@ -115,11 +117,11 @@ interface GameContextType {
 const UPGRADES: Upgrade[] = [
   { id: 'drill', name: 'Nano Drill', baseCost: 100, baseBenefit: 1, type: 'tap' },
   { id: 'autominer', name: 'Auto-Miner', baseCost: 500, baseBenefit: 2, type: 'passive' },
-  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 100, type: 'tap' }, // Buffed for higher energy pool
+  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 100, type: 'tap' },
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v4';
+const STORAGE_KEY = 'farmrush_user_v5';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -172,6 +174,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimedAdMilestones: [],
       claimedReferralMilestones: [],
       unlockedChests: [],
+      lastDailyRewardAt: null,
       inventory: { petFood: 0, spinTickets: 0 }
     };
   });
@@ -180,9 +183,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const autoMinerLevel = user.upgrades.autominer || 0;
     const photonLevel = user.upgrades.photon_collector || 0;
     let income = (autoMinerLevel * 2) + (photonLevel * 10);
-    if (user.vipStatus === "Silver") income *= 1.2;
-    if (user.vipStatus === "Gold") income *= 1.5;
-    if (user.vipStatus === "Diamond") income *= 2.0;
+    
+    // VIP Earning Logic: High yield to ensure profit > investment
+    if (user.vipStatus === "Silver") income *= 2.5; // Earn back $5 in ~2 weeks of activity
+    if (user.vipStatus === "Gold") income *= 4.0;
+    if (user.vipStatus === "Diamond") income *= 8.0;
+    
     return income;
   }, [user.upgrades, user.vipStatus]);
 
@@ -244,7 +250,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const passiveIncome = getPassiveIncome();
         const coinsAdded = (passiveIncome / 10);
         
-        // Remove incremental regen - energy is now primarily ad-based
         return {
           ...u,
           vipStatus: newVip,
@@ -266,9 +271,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isBoosted = user.boostEndTime && Date.now() < user.boostEndTime;
     let power = isBoosted ? basePower * 2 : basePower;
     
-    if (user.vipStatus === "Silver") power *= 1.5;
-    if (user.vipStatus === "Gold") power *= 2.0;
-    if (user.vipStatus === "Diamond") power *= 3.0;
+    if (user.vipStatus === "Silver") power *= 2.5; 
+    if (user.vipStatus === "Gold") power *= 4.5;
+    if (user.vipStatus === "Diamond") power *= 10.0;
     
     return Math.floor(power);
   }, [user.upgrades.drill, user.boostEndTime, user.vipStatus]);
@@ -276,15 +281,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mine = () => {
     if (user.energy < 1) return null;
     const power = getMiningPower();
-    const isCritical = Math.random() < (user.vipStatus !== "none" ? 0.15 : 0.05);
+    const isCritical = Math.random() < (user.vipStatus !== "none" ? 0.25 : 0.05);
     const amount = isCritical ? power * 5 : power;
 
     setUser(u => ({
       ...u,
       wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount },
       energy: Math.max(0, u.energy - 1),
-      xp: u.xp + (isCritical ? 5 : 1),
-      level: Math.floor((u.xp + 1) / 1000) + 1
+      xp: u.xp + (isCritical ? 10 : 2),
+      level: Math.floor((u.xp + 2) / 1000) + 1
     }));
     return { amount, isCritical };
   };
@@ -309,6 +314,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
     }
+  };
+
+  const claimDailyReward = () => {
+    const now = Date.now();
+    const lastClaim = user.lastDailyRewardAt || 0;
+    const oneDay = 24 * 60 * 60 * 1000;
+    
+    if (now - lastClaim < oneDay) {
+      toast({ title: "Wait!", description: "Daily reward ready in " + Math.ceil((oneDay - (now - lastClaim)) / (1000 * 60 * 60)) + " hours." });
+      return;
+    }
+
+    let reward = 5000;
+    if (user.vipStatus === "Silver") reward = 15000;
+    if (user.vipStatus === "Gold") reward = 40000;
+    if (user.vipStatus === "Diamond") reward = 100000;
+
+    setUser(u => ({
+      ...u,
+      wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+      lastDailyRewardAt: now
+    }));
+    toast({ title: "Daily Reward", description: `+${reward.toLocaleString()} coins collected!` });
   };
 
   const addCoins = (amount: number) => setUser(u => ({ 
@@ -392,7 +420,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak, claimDailyReward
     }}>
       {children}
     </GameContext.Provider>
