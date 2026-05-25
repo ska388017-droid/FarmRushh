@@ -50,6 +50,7 @@ export interface UserState {
   maxEnergy: number;
   energyRegenRate: number;
   adsWatched: number;
+  cinemaAdsWatched: number;
   tasksCompleted: number;
   tier: Tier;
   lastWithdrawalAt: number | null;
@@ -80,7 +81,7 @@ interface GameContextType {
   mine: () => { amount: number; isCritical: boolean } | null;
   upgrade: (upgradeId: string) => void;
   addCoins: (amount: number) => void;
-  watchAd: () => void;
+  watchAd: (isCinema?: boolean) => void;
   activateBoost: () => void;
   completeTask: (taskId: string) => void;
   claimAdMilestone: (milestoneId: string, rewardCoins: number, rewardTickets?: number) => void;
@@ -125,6 +126,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       maxEnergy: 1000,
       energyRegenRate: 1,
       adsWatched: 0,
+      cinemaAdsWatched: 0,
       tasksCompleted: 0,
       tier: "Silver",
       lastWithdrawalAt: null,
@@ -274,10 +276,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount } 
   }));
   
-  const watchAd = () => {
+  const watchAd = (isCinema: boolean = false) => {
     setUser(u => ({
       ...u,
       adsWatched: u.adsWatched + 1,
+      cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
       ownReferralProgress: {
         ...u.ownReferralProgress,
         adsWatched: (u.ownReferralProgress?.adsWatched || 0) + 1

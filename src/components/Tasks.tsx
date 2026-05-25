@@ -7,12 +7,28 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Instagram, Send, CheckCircle2, Coins, ArrowRight, Zap, Play, PlayCircle, Trophy, Box } from "lucide-react";
+import { 
+  Instagram, 
+  Send, 
+  CheckCircle2, 
+  Coins, 
+  ArrowRight, 
+  Zap, 
+  Play, 
+  PlayCircle, 
+  Trophy, 
+  Box, 
+  Clapperboard, 
+  Ticket,
+  Sparkles,
+  MonitorPlay
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AdGate } from "@/components/ads/AdGate";
+import { cn } from "@/lib/utils";
 
 export const Tasks = () => {
-  const { addCoins, completeTask, claimAdMilestone, user } = useGame();
+  const { addCoins, completeTask, claimAdMilestone, user, watchAd } = useGame();
 
   const handleTask = (taskId: string, coins: number) => {
     const isCompleted = taskId === "tg_join" ? user.ownReferralProgress.tgJoined : taskId === "ig_follow" ? user.ownReferralProgress.igFollowed : false;
@@ -39,11 +55,68 @@ export const Tasks = () => {
     { id: "yt_sub", title: "Subscribe FarmRush", subtitle: "Earn 2x Boosters", reward: 2000, icon: ArrowRight, color: "bg-red-500" },
   ];
 
+  const cinemaProgress = Math.min(100, ((user.cinemaAdsWatched || 0) / 5) * 100);
+  const canClaimPremiere = (user.cinemaAdsWatched || 0) >= 5 && !user.claimedAdMilestones?.includes("cinema_daily");
+
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold neon-text-primary tracking-tighter uppercase">Bounty Hub</h2>
         <Badge variant="outline" className="border-secondary text-secondary font-black">ACTIVE</Badge>
+      </div>
+
+      {/* Cinema Rewards Section */}
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <Clapperboard className="w-3 h-3 text-primary" /> Cinema Rewards
+        </h3>
+        
+        <Card className="glass-morphism border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background p-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+            <MonitorPlay className="w-24 h-24 text-primary" />
+          </div>
+          
+          <div className="relative z-10 space-y-6">
+            <div className="space-y-1">
+              <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black tracking-widest uppercase mb-2">Cinema Hall 01</Badge>
+              <h4 className="text-xl font-black text-white italic uppercase tracking-tighter">Daily Cyber-Premiere</h4>
+              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Watch 5 Premieres for a 5,000 Coin bonus</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                  <span className="text-muted-foreground">Premiere Progress</span>
+                  <span className="text-primary">{user.cinemaAdsWatched || 0} / 5</span>
+                </div>
+                <Progress value={cinemaProgress} className="h-1.5 bg-white/5" />
+              </div>
+
+              <div className="flex gap-2">
+                <AdGate actionName="Watch Cinema Premiere" onReward={() => {
+                  watchAd(true);
+                  addCoins(1000);
+                  toast({ title: "Premiere Complete", description: "+1,000 Coins Received!" });
+                }}>
+                  <Button className="flex-1 bg-primary hover:bg-primary/80 text-white font-black h-12 rounded-xl shadow-lg shadow-primary/20">
+                    <Ticket className="w-4 h-4 mr-2" /> WATCH PREMIERE
+                  </Button>
+                </AdGate>
+                
+                <Button 
+                  disabled={!canClaimPremiere}
+                  onClick={() => claimAdMilestone("cinema_daily", 5000)}
+                  className={cn(
+                    "px-6 h-12 rounded-xl font-black text-[10px] transition-all",
+                    canClaimPremiere ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20" : "bg-white/5 text-muted-foreground"
+                  )}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" /> CLAIM 5K
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {user.referredBy && !user.referralBonusClaimed && (
@@ -113,7 +186,7 @@ export const Tasks = () => {
 
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <PlayCircle className="w-3 h-3 text-primary" /> Daily Ad Taps
+          <MonitorPlay className="w-3 h-3 text-secondary" /> Quick Crystal Burst
         </h3>
         
         <Card className="glass-morphism p-4 border-secondary/20 bg-secondary/5 relative overflow-hidden group border-dashed">
@@ -123,7 +196,7 @@ export const Tasks = () => {
                 <Play className="w-6 h-6 text-secondary animate-pulse" />
               </div>
               <div>
-                <p className="text-xs font-black text-white uppercase tracking-tighter">Quick Crystal Burst</p>
+                <p className="text-xs font-black text-white uppercase tracking-tighter">Fast-Track Bounty</p>
                 <p className="text-[9px] text-muted-foreground uppercase font-bold">Watch ad for 500 crystals</p>
               </div>
             </div>
