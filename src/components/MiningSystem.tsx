@@ -100,7 +100,7 @@ export const MiningSystem = () => {
   const isBoosted = boostTimeRemaining > 0;
 
   return (
-    <div className="space-y-8 pb-24 w-full">
+    <div className="space-y-8 pb-24 w-full overflow-x-hidden">
       {showLuckyFlip && <LuckyFlip onClose={() => setShowLuckyFlip(false)} />}
 
       <div className="grid grid-cols-2 gap-4">
@@ -178,7 +178,7 @@ export const MiningSystem = () => {
         )}
       </Card>
 
-      <div className="relative flex flex-col items-center justify-center py-6 overflow-hidden">
+      <div className="relative flex flex-col items-center justify-center py-6 overflow-hidden w-full">
         {isBossEvent && (
           <div className="absolute top-0 w-full max-w-[200px] space-y-2 animate-in fade-in zoom-in duration-500 z-20">
              <div className="flex justify-between items-center text-[10px] font-black text-destructive uppercase tracking-widest">
