@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
@@ -87,7 +86,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserState>({
     id: "user_temp",
     uid: "CN000000",
-    username: "CyberMiner",
+    username: "Operator",
     wallet: {
       coins: 1000,
       usdt: 0,
