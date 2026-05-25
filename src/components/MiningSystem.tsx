@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useGame } from "@/lib/game-store";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
@@ -15,18 +16,32 @@ import {
   CloudLightning,
   Sparkles,
   Gift,
-  Package
+  Package,
+  Flame,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdGate } from "@/components/ads/AdGate";
 import { toast } from "@/hooks/use-toast";
 
 export const MiningSystem = () => {
-  const { user, mine, upgrade, getMiningPower, getPassiveIncome } = useGame();
+  const { user, mine, upgrade, getMiningPower, getPassiveIncome, activateBoost } = useGame();
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; amount: number; isCritical: boolean }[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [boostTimeRemaining, setBoostTimeRemaining] = useState(0);
 
-  // Safe checks for user properties
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (user.boostEndTime) {
+        const remaining = Math.max(0, Math.ceil((user.boostEndTime - Date.now()) / 1000));
+        setBoostTimeRemaining(remaining);
+      } else {
+        setBoostTimeRemaining(0);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [user.boostEndTime]);
+
   const coins = user?.wallet?.coins || 0;
   const energy = user?.energy || 0;
   const maxEnergy = user?.maxEnergy || 1000;
@@ -58,16 +73,25 @@ export const MiningSystem = () => {
   const miningPower = getMiningPower();
   const passiveIncome = getPassiveIncome();
   const energyProgress = (energy / maxEnergy) * 100;
+  const isBoosted = boostTimeRemaining > 0;
 
   return (
     <div className="space-y-8 pb-24">
       <div className="grid grid-cols-2 gap-4">
-        <Card className="glass-morphism p-4 border-primary/20 bg-primary/5">
+        <Card className={cn(
+          "glass-morphism p-4 border-primary/20 transition-all duration-500",
+          isBoosted ? "bg-primary/20 shadow-[0_0_20px_rgba(163,92,255,0.3)]" : "bg-primary/5"
+        )}>
           <div className="flex items-center gap-2 mb-1">
-            <Cpu className="w-3 h-3 text-primary" />
+            <Cpu className={cn("w-3 h-3", isBoosted ? "text-secondary animate-pulse" : "text-primary")} />
             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Mining Power</span>
           </div>
-          <p className="text-xl font-black text-white">{miningPower}<span className="text-[10px] ml-1 text-primary">/ TAP</span></p>
+          <p className="text-xl font-black text-white">
+            {miningPower}
+            <span className={cn("text-[10px] ml-1 uppercase font-bold", isBoosted ? "text-secondary" : "text-primary")}>
+              {isBoosted ? "x2 Active" : "/ Tap"}
+            </span>
+          </p>
         </Card>
         <Card className="glass-morphism p-4 border-secondary/20 bg-secondary/5">
           <div className="flex items-center gap-2 mb-1">
@@ -78,8 +102,11 @@ export const MiningSystem = () => {
         </Card>
       </div>
 
-      <div className="relative flex flex-col items-center justify-center py-10">
-        <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full scale-150 animate-pulse" />
+      <div className="relative flex flex-col items-center justify-center py-6">
+        <div className={cn(
+          "absolute inset-0 blur-3xl rounded-full scale-150 animate-pulse transition-colors duration-1000",
+          isBoosted ? "bg-secondary/10" : "bg-primary/5"
+        )} />
         
         <button
           onMouseDown={handleMine}
@@ -89,12 +116,26 @@ export const MiningSystem = () => {
             isAnimating ? "scale-95" : "scale-100"
           )}
         >
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse" />
-          <div className="absolute -inset-4 border-2 border-primary/20 rounded-full animate-[spin_10s_linear_infinite] border-t-primary" />
+          <div className={cn(
+            "absolute inset-0 rounded-full blur-2xl animate-pulse transition-colors duration-500",
+            isBoosted ? "bg-secondary/30" : "bg-primary/20"
+          )} />
+          <div className={cn(
+            "absolute -inset-4 border-2 rounded-full animate-[spin_10s_linear_infinite] border-t-primary transition-colors",
+            isBoosted ? "border-secondary/20" : "border-primary/20"
+          )} />
           
-          <div className="relative w-36 h-36 bg-gradient-to-tr from-primary via-purple-500 to-secondary rounded-full shadow-[0_0_50px_rgba(163,92,255,0.4)] flex items-center justify-center overflow-hidden">
+          <div className={cn(
+            "relative w-36 h-36 rounded-full shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500",
+            isBoosted 
+              ? "bg-gradient-to-tr from-secondary via-green-400 to-primary shadow-[0_0_60px_rgba(57,255,20,0.5)]" 
+              : "bg-gradient-to-tr from-primary via-purple-500 to-secondary shadow-[0_0_50px_rgba(163,92,255,0.4)]"
+          )}>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
-            <Diamond className="w-20 h-20 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-bounce" />
+            <Diamond className={cn(
+              "w-20 h-20 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-transform duration-300",
+              isAnimating ? "scale-110" : "scale-100"
+            )} />
             <Sparkles className="absolute top-4 right-4 w-6 h-6 text-white/50 animate-pulse" />
           </div>
         </button>
@@ -131,6 +172,52 @@ export const MiningSystem = () => {
 
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <Flame className="w-3 h-3" /> Quantum Boosters
+        </h3>
+        
+        <Card className={cn(
+          "glass-morphism p-4 border-white/10 relative overflow-hidden group transition-all duration-500",
+          isBoosted ? "border-secondary/50 bg-secondary/10" : "hover:border-primary/40"
+        )}>
+          {isBoosted && (
+            <div className="absolute top-0 left-0 w-full h-1 bg-secondary animate-pulse" />
+          )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
+                isBoosted ? "bg-secondary/20 border-secondary/40 animate-pulse" : "bg-white/5 border-white/10"
+              )}>
+                <Flame className={cn("w-6 h-6", isBoosted ? "text-secondary" : "text-muted-foreground")} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white uppercase tracking-tighter">
+                  {isBoosted ? "Boost Active" : "2X Mining Multiplier"}
+                </p>
+                <p className={cn("text-[9px] uppercase font-bold", isBoosted ? "text-secondary" : "text-muted-foreground")}>
+                  {isBoosted ? `${boostTimeRemaining}s Remaining` : "Watch ad to double rewards"}
+                </p>
+              </div>
+            </div>
+            
+            {!isBoosted ? (
+              <AdGate actionName="Activate 2X Boost" onReward={() => {
+                activateBoost();
+                toast({ title: "Boost Activated!", description: "Mining power doubled for 60 seconds." });
+              }}>
+                <Button size="sm" className="bg-primary text-white font-black text-[10px] h-9 rounded-xl px-4 shadow-lg shadow-primary/20">
+                  ACTIVATE
+                </Button>
+              </AdGate>
+            ) : (
+              <Badge className="bg-secondary/20 text-secondary border-secondary/30 text-[9px] px-3 h-8 flex items-center gap-1.5 font-black">
+                <Clock className="w-3 h-3" /> {boostTimeRemaining}S
+              </Badge>
+            )}
+          </div>
+        </Card>
+
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 pt-2 flex items-center gap-2">
           <Package className="w-3 h-3" /> System Upgrades
         </h3>
         <div className="grid grid-cols-1 gap-3">

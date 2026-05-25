@@ -63,6 +63,7 @@ export interface UserState {
   ownReferralProgress: ReferralTasks;
   upgrades: Record<string, number>;
   lastPassiveCollection: number;
+  boostEndTime: number | null;
 }
 
 interface GameContextType {
@@ -71,6 +72,7 @@ interface GameContextType {
   upgrade: (upgradeId: string) => void;
   addCoins: (amount: number) => void;
   watchAd: () => void;
+  activateBoost: () => void;
   completeTask: (taskId: string) => void;
   registerWithdrawal: (method: string, address: string) => void;
   claimReferralReward: (targetUid: string) => void;
@@ -116,13 +118,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     referrals: [],
     ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
     upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
-    lastPassiveCollection: Date.now()
+    lastPassiveCollection: Date.now(),
+    boostEndTime: null
   });
 
   const getMiningPower = useCallback(() => {
     const drillLevel = user.upgrades.drill || 0;
-    return 1 + drillLevel * 2;
-  }, [user.upgrades.drill]);
+    const basePower = 1 + drillLevel * 2;
+    const isBoosted = user.boostEndTime && Date.now() < user.boostEndTime;
+    return isBoosted ? basePower * 2 : basePower;
+  }, [user.upgrades.drill, user.boostEndTime]);
 
   const getPassiveIncome = useCallback(() => {
     const autoMinerLevel = user.upgrades.autominer || 0;
@@ -241,6 +246,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   };
 
+  const activateBoost = () => {
+    setUser(u => ({
+      ...u,
+      boostEndTime: Date.now() + 60000 // 60 seconds of 2X Mining
+    }));
+  };
+
   const completeTask = (taskId: string) => {
     setUser(u => {
       const newTasks = { ...u.ownReferralProgress };
@@ -308,7 +320,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, mine, upgrade, addCoins, watchAd, completeTask, registerWithdrawal, claimReferralReward, getMiningPower, getPassiveIncome
+      user, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, registerWithdrawal, claimReferralReward, getMiningPower, getPassiveIncome
     }}>
       {children}
     </GameContext.Provider>
