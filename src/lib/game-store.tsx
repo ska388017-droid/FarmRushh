@@ -50,7 +50,6 @@ export interface UserState {
   level: number;
   energy: number;
   maxEnergy: number;
-  energyRegenRate: number;
   lastEnergyRegenAt: number;
   adsWatched: number;
   cinemaAdsWatched: number;
@@ -111,35 +110,28 @@ interface GameContextType {
   claimVault: () => void;
   feedPet: () => void;
   incrementStreak: () => void;
-  secondsToNextEnergy: number;
 }
 
 const UPGRADES: Upgrade[] = [
   { id: 'drill', name: 'Nano Drill', baseCost: 100, baseBenefit: 1, type: 'tap' },
   { id: 'autominer', name: 'Auto-Miner', baseCost: 500, baseBenefit: 2, type: 'passive' },
-  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 2, type: 'tap' },
+  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 100, type: 'tap' }, // Buffed for higher energy pool
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v3';
+const STORAGE_KEY = 'farmrush_user_v4';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const db = useFirestore();
   const [offlineEarnings, setOfflineEarnings] = useState(0);
-  const [secondsToNextEnergy, setSecondsToNextEnergy] = useState(0);
   
   const [user, setUser] = useState<UserState>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          vipStatus: parsed.vipStatus || "none",
-          vipExpiry: parsed.vipExpiry || null,
-        };
+        return JSON.parse(saved);
       }
     }
     return {
@@ -149,9 +141,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wallet: { coins: 1000, usdt: 0, ton: 0, bnb: 0 },
       xp: 0,
       level: 1,
-      energy: 20,
-      maxEnergy: 20,
-      energyRegenRate: 1,
+      energy: 1000,
+      maxEnergy: 1000,
       lastEnergyRegenAt: Date.now(),
       adsWatched: 0,
       cinemaAdsWatched: 0,
@@ -189,7 +180,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const autoMinerLevel = user.upgrades.autominer || 0;
     const photonLevel = user.upgrades.photon_collector || 0;
     let income = (autoMinerLevel * 2) + (photonLevel * 10);
-    // VIP Boosts
     if (user.vipStatus === "Silver") income *= 1.2;
     if (user.vipStatus === "Gold") income *= 1.5;
     if (user.vipStatus === "Diamond") income *= 2.0;
@@ -206,21 +196,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const passiveRate = getPassiveIncome();
     const earnings = Math.floor(elapsedSeconds * passiveRate);
 
-    if (earnings > 1) {
-      setOfflineEarnings(earnings);
-    }
+    if (earnings > 1) setOfflineEarnings(earnings);
 
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
     const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
 
     setUser(u => {
-      const isVip = u.vipStatus !== "none" || u.tier === "God Elite";
-      const maxCap = isVip ? 50 : 20;
+      let vMax = 1000;
+      if (u.vipStatus === "Silver") vMax = 2500;
+      if (u.vipStatus === "Gold") vMax = 5000;
+      if (u.vipStatus === "Diamond") vMax = 10000;
+      
       return {
         ...u,
         uid: u.uid === "CN000000" ? generatedUid : u.uid,
         referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
-        maxEnergy: maxCap + (u.upgrades.energy_core * 2)
+        maxEnergy: vMax + (u.upgrades.energy_core * 100)
       };
     });
 
@@ -243,7 +234,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const interval = setInterval(() => {
       const now = Date.now();
       setUser(u => {
-        // Check VIP expiry
         let newVip = u.vipStatus;
         let newExpiry = u.vipExpiry;
         if (newExpiry && now > newExpiry) {
@@ -254,22 +244,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const passiveIncome = getPassiveIncome();
         const coinsAdded = (passiveIncome / 10);
         
-        const isVip = newVip !== "none" || u.tier === "God Elite";
-        const regenIntervalMs = isVip ? 300000 : 900000; 
-        const elapsedSinceRegen = now - u.lastEnergyRegenAt;
-        
-        let newEnergy = u.energy;
-        let newRegenAt = u.lastEnergyRegenAt;
-        
-        if (elapsedSinceRegen >= regenIntervalMs && u.energy < u.maxEnergy) {
-          const energyToGain = Math.floor(elapsedSinceRegen / regenIntervalMs);
-          newEnergy = Math.min(u.maxEnergy, u.energy + energyToGain);
-          newRegenAt = now - (elapsedSinceRegen % regenIntervalMs);
-        }
-
-        const remainingSeconds = Math.max(0, Math.ceil((regenIntervalMs - (now - newRegenAt)) / 1000));
-        setSecondsToNextEnergy(u.energy >= u.maxEnergy ? 0 : remainingSeconds);
-
+        // Remove incremental regen - energy is now primarily ad-based
         return {
           ...u,
           vipStatus: newVip,
@@ -278,8 +253,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...u.wallet,
             coins: (u.wallet?.coins || 0) + coinsAdded
           },
-          energy: newEnergy,
-          lastEnergyRegenAt: newRegenAt,
           lastPassiveCollection: now
         };
       });
@@ -293,7 +266,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isBoosted = user.boostEndTime && Date.now() < user.boostEndTime;
     let power = isBoosted ? basePower * 2 : basePower;
     
-    // VIP Taps
     if (user.vipStatus === "Silver") power *= 1.5;
     if (user.vipStatus === "Gold") power *= 2.0;
     if (user.vipStatus === "Diamond") power *= 3.0;
@@ -323,11 +295,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentLevel = user.upgrades[upgradeId] || 0;
     const cost = Math.floor(upg.baseCost * Math.pow(1.5, currentLevel));
     if ((user.wallet?.coins || 0) >= cost) {
-      setUser(u => ({
-        ...u,
-        wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) - cost },
-        upgrades: { ...u.upgrades, [upgradeId]: currentLevel + 1 }
-      }));
+      setUser(u => {
+        let vMax = 1000;
+        if (u.vipStatus === "Silver") vMax = 2500;
+        if (u.vipStatus === "Gold") vMax = 5000;
+        if (u.vipStatus === "Diamond") vMax = 10000;
+        
+        return {
+          ...u,
+          wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) - cost },
+          upgrades: { ...u.upgrades, [upgradeId]: currentLevel + 1 },
+          maxEnergy: upgradeId === 'energy_core' ? vMax + ((currentLevel + 1) * 100) : u.maxEnergy
+        }
+      });
     }
   };
 
@@ -350,34 +330,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const submitVIPRequest = async (plan: VIPPlan, txHash: string, price: number) => {
     if (!db) return false;
-    
-    // Check for duplicate hash
     const q = query(collection(db, "vip_requests"), where("txHash", "==", txHash));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
       toast({ title: "Error", description: "This transaction hash has already been submitted.", variant: "destructive" });
       return false;
     }
-
-    const requestData = {
-      uid: user.uid,
-      username: user.username,
-      plan,
-      txHash,
-      price,
-      status: "pending",
-      createdAt: Date.now()
-    };
-
-    addDoc(collection(db, "vip_requests"), requestData)
-      .catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: '/vip_requests',
-          operation: 'create',
-          requestResourceData: requestData
-        }));
-      });
-
+    const requestData = { uid: user.uid, username: user.username, plan, txHash, price, status: "pending", createdAt: Date.now() };
+    addDoc(collection(db, "vip_requests"), requestData).catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/vip_requests', operation: 'create', requestResourceData: requestData }));
+    });
     return true;
   };
 
@@ -393,16 +355,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
-    const withdrawalData = {
-      uid: user.uid,
-      username: user.username,
-      coins,
-      usdtAmount: usdt,
-      method,
-      address,
-      status: "pending",
-      createdAt: Date.now()
-    };
+    const withdrawalData = { uid: user.uid, username: user.username, coins, usdtAmount: usdt, method, address, status: "pending", createdAt: Date.now() };
     addDoc(collection(db, "withdrawals"), withdrawalData);
     setUser(u => ({ 
       ...u, 
@@ -412,34 +365,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   };
 
-  // Other stubs...
-  const claimHourlyAdBonus = () => {};
-  const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
+  const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
   const claimAdChest = (id: string, r: number) => {
-    if (user.energy < 2) return false;
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, energy: u.energy - 2, unlockedChests: [...u.unlockedChests, id] }));
+    if (user.energy < 15) return false;
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, energy: u.energy - 15, unlockedChests: [...u.unlockedChests, id] }));
     return true;
   };
+  const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
   const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
-  const refillEnergy = () => setUser(u => ({ ...u, energy: Math.min(u.maxEnergy, u.energy + (u.vipStatus !== "none" ? 2 : 1)) }));
-  const claimVault = () => {};
-  const feedPet = () => {};
-  const incrementStreak = () => {};
-  const completeTask = (id: string) => setUser(u => ({ ...u, tasksCompleted: u.tasksCompleted + 1, ownReferralProgress: { ...u.ownReferralProgress, [id === 'tg_join' ? 'tgJoined' : 'igFollowed']: true } }));
   const claimReferralMilestone = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
-  const claimReferralReward = (uid: string) => {};
   const claimOfflineEarnings = (t: boolean) => {
-    if (user.energy < 1) return false;
+    if (user.energy < 10) return false;
     const amount = t ? offlineEarnings * 3 : offlineEarnings;
     addCoins(amount);
-    setUser(u => ({ ...u, energy: u.energy - 1 }));
+    setUser(u => ({ ...u, energy: Math.max(0, u.energy - 10) }));
     setOfflineEarnings(0);
     return true;
   };
 
+  const claimVault = () => {};
+  const claimReferralReward = (uid: string) => {};
+  const feedPet = () => {};
+  const incrementStreak = () => {};
+  const completeTask = (id: string) => setUser(u => ({ ...u, tasksCompleted: u.tasksCompleted + 1, ownReferralProgress: { ...u.ownReferralProgress, [id === 'tg_join' ? 'tgJoined' : 'igFollowed']: true } }));
+  const claimHourlyAdBonus = () => {};
+
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak, secondsToNextEnergy
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
     }}>
       {children}
     </GameContext.Provider>
