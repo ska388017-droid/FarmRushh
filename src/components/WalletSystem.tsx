@@ -6,43 +6,48 @@ import { useGame } from "@/lib/game-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ArrowUpRight, ShieldAlert, History, Info, Clock, AlertCircle } from "lucide-react";
+import { Wallet, ArrowUpRight, ShieldAlert, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
 export const WalletSystem = () => {
   const { user, registerWithdrawal } = useGame();
 
+  // Safeguard values to prevent runtime crashes
+  const coins = user?.wallet?.coins || 0;
+  const usdt = user?.wallet?.usdt || 0;
+  const ton = user?.wallet?.ton || 0;
+  const bnb = user?.wallet?.bnb || 0;
+  const adsWatched = user?.adsWatched || 0;
+  const lastWithdrawalAt = user?.lastWithdrawalAt || null;
+
   const handleWithdraw = (network: string) => {
     const MIN_WITHDRAW_COINS = 50000;
     const cooldownMs = 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // Withdrawal Guard Logic
-    if (user.coins < MIN_WITHDRAW_COINS) {
+    if (coins < MIN_WITHDRAW_COINS) {
       toast({ title: "Insufficient Balance", description: "You need at least 50,000 coins to withdraw.", variant: "destructive" });
       return;
     }
 
-    if (user.lastWithdrawalAt && (now - user.lastWithdrawalAt < cooldownMs)) {
-      const hoursLeft = Math.ceil((cooldownMs - (now - user.lastWithdrawalAt)) / (1000 * 60 * 60));
+    if (lastWithdrawalAt && (now - lastWithdrawalAt < cooldownMs)) {
+      const hoursLeft = Math.ceil((cooldownMs - (now - lastWithdrawalAt)) / (1000 * 60 * 60));
       toast({ title: "Cooldown Active", description: `You can withdraw again in ${hoursLeft} hours.`, variant: "destructive" });
       return;
     }
 
-    if (user.adsWatched < 20) {
+    if (adsWatched < 20) {
       toast({ title: "Guard Alert", description: "Watch at least 20 ads to unlock withdrawals.", variant: "destructive" });
       return;
     }
     
     registerWithdrawal();
-    toast({ title: "Processing", description: `Withdrawal request of ₹${(user.coins / 1000).toFixed(2)} sent via ${network}.` });
+    toast({ title: "Processing", description: `Withdrawal request of ₹${(coins / 1000).toFixed(2)} sent via ${network}.` });
   };
 
-  const inrValue = (user.coins / 1000).toFixed(2);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold neon-text-primary">WALLET</h2>
         <Badge variant="outline" className="border-primary/50 text-primary bg-primary/5 text-[10px] px-3">
@@ -57,8 +62,8 @@ export const WalletSystem = () => {
               <div className="space-y-1">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Current Balance</p>
                 <div className="text-4xl font-black text-white flex items-center gap-2">
-                  {user.coins.toLocaleString()}
-                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md">COINS</span>
+                  {Math.floor(coins).toLocaleString()}
+                  <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md uppercase">Coins</span>
                 </div>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -68,12 +73,12 @@ export const WalletSystem = () => {
             
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
               <div className="flex flex-col">
-                <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Estimated Value</p>
-                <p className="text-xl font-black text-secondary">₹{inrValue}</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Conversion Ratio</p>
+                <p className="text-sm font-black text-secondary">1000 Coins = ₹1</p>
               </div>
               <div className="flex flex-col items-end">
-                <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Conversion Ratio</p>
-                <p className="text-xs font-bold text-white/80">1000 Coins = ₹1</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Estimated INR</p>
+                <p className="text-sm font-bold text-white/80">₹{(coins / 1000).toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -84,7 +89,7 @@ export const WalletSystem = () => {
         </div>
 
         <Tabs defaultValue="upi" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white/5 rounded-xl p-1 border border-white/5">
+          <TabsList className="grid w-full grid-cols-3 bg-white/5 rounded-xl p-1 border border-white/5 h-11">
             <TabsTrigger value="upi" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-bold text-[10px]">UPI</TabsTrigger>
             <TabsTrigger value="ton" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-bold text-[10px]">TON</TabsTrigger>
             <TabsTrigger value="bnb" className="rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-bold text-[10px]">BNB</TabsTrigger>
@@ -95,10 +100,10 @@ export const WalletSystem = () => {
               <WithdrawForm title="UPI Instant Payout" subtitle="Requires valid UPI ID" onWithdraw={() => handleWithdraw("UPI")} />
             </TabsContent>
             <TabsContent value="ton">
-              <WithdrawForm title="TON USDT" subtitle="Network: TON (BEP-20 Not Supported)" onWithdraw={() => handleWithdraw("TON")} />
+              <WithdrawForm title="TON Wallet" balance={ton} symbol="TON" onWithdraw={() => handleWithdraw("TON")} />
             </TabsContent>
             <TabsContent value="bnb">
-              <WithdrawForm title="BNB USDT" subtitle="Network: BEP-20" onWithdraw={() => handleWithdraw("BNB Chain")} />
+              <WithdrawForm title="BNB Wallet" balance={bnb} symbol="BNB" onWithdraw={() => handleWithdraw("BNB Chain")} />
             </TabsContent>
           </div>
         </Tabs>
@@ -110,9 +115,9 @@ export const WalletSystem = () => {
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="space-y-3">
-              <GuardItem label="20 Ads Watched" current={user.adsWatched} target={20} />
-              <GuardItem label="Min. 50,000 Coins" current={user.coins} target={50000} />
-              <GuardItem label="24h Cooldown" current={user.lastWithdrawalAt ? "Pending" : "Ready"} target="Ready" isSpecial />
+              <GuardItem label="20 Ads Watched" current={adsWatched} target={20} />
+              <GuardItem label="Min. 50,000 Coins" current={Math.floor(coins)} target={50000} />
+              <GuardItem label="24h Cooldown" current={lastWithdrawalAt ? "Pending" : "Ready"} target="Ready" isSpecial />
             </div>
           </CardContent>
         </Card>
@@ -133,12 +138,16 @@ const GuardItem = ({ label, current, target, isSpecial }: any) => {
   );
 };
 
-const WithdrawForm = ({ title, subtitle, onWithdraw }: { title: string, subtitle: string, onWithdraw: () => void }) => (
+const WithdrawForm = ({ title, subtitle, balance, symbol, onWithdraw }: any) => (
   <div className="glass-morphism p-4 rounded-2xl space-y-4 border-white/5 bg-gradient-to-br from-white/5 to-transparent">
     <div className="flex justify-between items-center">
       <div>
         <h3 className="font-bold text-sm text-white">{title}</h3>
-        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{subtitle}</p>
+        {balance !== undefined ? (
+          <p className="text-[10px] text-primary font-black uppercase tracking-tight">Balance: {balance} {symbol}</p>
+        ) : (
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{subtitle}</p>
+        )}
       </div>
       <Badge variant="outline" className="border-secondary/20 text-secondary bg-secondary/5 text-[9px]">FASTEST</Badge>
     </div>

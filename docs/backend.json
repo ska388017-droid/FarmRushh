@@ -1,15 +1,24 @@
+
 {
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Stores user game stats, balance, and Telegram profile information.",
+      "description": "Stores user game stats, wallet balance, and Telegram profile information.",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "description": "Unique identifier for the user (CNXXXXXX format)." },
         "username": { "type": "string" },
         "telegramId": { "type": "string" },
         "avatarUrl": { "type": "string" },
-        "crystals": { "type": "number" },
+        "wallet": {
+          "type": "object",
+          "properties": {
+            "coins": { "type": "number" },
+            "usdt": { "type": "number" },
+            "ton": { "type": "number" },
+            "bnb": { "type": "number" }
+          }
+        },
         "xp": { "type": "number" },
         "level": { "type": "number" },
         "energy": { "type": "number" },
@@ -28,7 +37,7 @@
         },
         "lastPassiveCollection": { "type": "number" }
       },
-      "required": ["uid", "username", "crystals", "referralCode"]
+      "required": ["uid", "username", "wallet", "referralCode"]
     }
   },
   "auth": {

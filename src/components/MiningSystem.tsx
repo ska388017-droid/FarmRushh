@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/game-store";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
@@ -14,7 +15,6 @@ import {
   Pickaxe, 
   CloudLightning,
   Sparkles,
-  ArrowUp,
   Gift,
   Package
 } from "lucide-react";
@@ -26,6 +26,14 @@ export const MiningSystem = () => {
   const { user, mine, upgrade, getMiningPower, getPassiveIncome } = useGame();
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; amount: number; isCritical: boolean }[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // Safe checks for user properties
+  const coins = user?.wallet?.coins || 0;
+  const energy = user?.energy || 0;
+  const maxEnergy = user?.maxEnergy || 1000;
+  const drillLvl = user?.upgrades?.drill || 0;
+  const autoLvl = user?.upgrades?.autominer || 0;
+  const energyLvl = user?.upgrades?.energy_core || 0;
 
   const handleMine = (e: React.MouseEvent | React.TouchEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -50,11 +58,10 @@ export const MiningSystem = () => {
 
   const miningPower = getMiningPower();
   const passiveIncome = getPassiveIncome();
-  const energyProgress = (user.energy / user.maxEnergy) * 100;
+  const energyProgress = (energy / maxEnergy) * 100;
 
   return (
     <div className="space-y-8 pb-24">
-      {/* Stats Overview */}
       <div className="grid grid-cols-2 gap-4">
         <Card className="glass-morphism p-4 border-primary/20 bg-primary/5">
           <div className="flex items-center gap-2 mb-1">
@@ -72,11 +79,9 @@ export const MiningSystem = () => {
         </Card>
       </div>
 
-      {/* Main Mining Area */}
       <div className="relative flex flex-col items-center justify-center py-10">
         <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full scale-150 animate-pulse" />
         
-        {/* The Crystal */}
         <button
           onMouseDown={handleMine}
           onTouchStart={handleMine}
@@ -87,16 +92,14 @@ export const MiningSystem = () => {
         >
           <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse" />
           <div className="absolute -inset-4 border-2 border-primary/20 rounded-full animate-[spin_10s_linear_infinite] border-t-primary" />
-          <div className="absolute -inset-8 border border-white/5 rounded-full animate-[spin_15s_linear_reverse_infinite]" />
           
-          <div className="relative w-36 h-36 bg-gradient-to-tr from-primary via-purple-500 to-secondary rounded-full shadow-[0_0_50px_rgba(163,92,255,0.4)] flex items-center justify-center overflow-hidden group">
+          <div className="relative w-36 h-36 bg-gradient-to-tr from-primary via-purple-500 to-secondary rounded-full shadow-[0_0_50px_rgba(163,92,255,0.4)] flex items-center justify-center overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
             <Diamond className="w-20 h-20 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] animate-bounce" />
             <Sparkles className="absolute top-4 right-4 w-6 h-6 text-white/50 animate-pulse" />
           </div>
         </button>
 
-        {/* Floating Particles */}
         {particles.map(p => (
           <div
             key={p.id}
@@ -120,14 +123,13 @@ export const MiningSystem = () => {
               <span className="text-[10px] font-black text-white/70 uppercase">Energy</span>
             </div>
             <span className="text-[10px] font-black text-secondary tabular-nums">
-              {Math.floor(user.energy)} / {user.maxEnergy}
+              {Math.floor(energy)} / {maxEnergy}
             </span>
           </div>
           <Progress value={energyProgress} className="h-2 bg-white/5" />
         </div>
       </div>
 
-      {/* Upgrades Section */}
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
           <Package className="w-3 h-3" /> System Upgrades
@@ -136,37 +138,36 @@ export const MiningSystem = () => {
           <UpgradeCard 
             id="drill" 
             name="Nano Drill" 
-            level={user.upgrades.drill || 0} 
+            level={drillLvl} 
             icon={Pickaxe}
-            benefit={`+2 Crystals / Tap`}
-            cost={Math.floor(100 * Math.pow(1.5, user.upgrades.drill || 0))}
+            benefit={`+2 Coins / Tap`}
+            cost={Math.floor(100 * Math.pow(1.5, drillLvl))}
             onUpgrade={() => upgrade('drill')}
-            canAfford={user.crystals >= Math.floor(100 * Math.pow(1.5, user.upgrades.drill || 0))}
+            canAfford={coins >= Math.floor(100 * Math.pow(1.5, drillLvl))}
           />
           <UpgradeCard 
             id="autominer" 
             name="Auto-Miner" 
-            level={user.upgrades.autominer || 0} 
+            level={autoLvl} 
             icon={Cpu}
-            benefit={`+2 Crystals / Sec`}
-            cost={Math.floor(500 * Math.pow(1.5, user.upgrades.autominer || 0))}
+            benefit={`+2 Coins / Sec`}
+            cost={Math.floor(500 * Math.pow(1.5, autoLvl))}
             onUpgrade={() => upgrade('autominer')}
-            canAfford={user.crystals >= Math.floor(500 * Math.pow(1.5, user.upgrades.autominer || 0))}
+            canAfford={coins >= Math.floor(500 * Math.pow(1.5, autoLvl))}
           />
           <UpgradeCard 
             id="energy_core" 
             name="Energy Core" 
-            level={user.upgrades.energy_core || 0} 
+            level={energyLvl} 
             icon={Zap}
             benefit={`+50 Max Energy`}
-            cost={Math.floor(300 * Math.pow(1.5, user.upgrades.energy_core || 0))}
+            cost={Math.floor(300 * Math.pow(1.5, energyLvl))}
             onUpgrade={() => upgrade('energy_core')}
-            canAfford={user.crystals >= Math.floor(300 * Math.pow(1.5, user.upgrades.energy_core || 0))}
+            canAfford={coins >= Math.floor(300 * Math.pow(1.5, energyLvl))}
           />
         </div>
       </div>
 
-      {/* Free Gift Section */}
       <Card className="glass-morphism p-6 border-secondary/30 bg-gradient-to-r from-secondary/10 to-transparent">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -176,12 +177,11 @@ export const MiningSystem = () => {
             </div>
             <div>
               <p className="text-xs font-black text-white uppercase tracking-tighter">Daily Supply Drop</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Watch ad to claim 2,500 Crystals</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">Watch ad to claim 2,500 Coins</p>
             </div>
           </div>
           <AdGate actionName="Claim Daily Gift" onReward={() => {
-            toast({ title: "Gift Claimed!", description: "You received 2,500 crystals!" });
-            // Add actual logic here
+            toast({ title: "Gift Claimed!", description: "You received 2,500 coins!" });
           }}>
             <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-8 rounded-xl">
               CLAIM

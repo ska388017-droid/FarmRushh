@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
@@ -27,11 +28,18 @@ export interface Upgrade {
   type: 'tap' | 'passive';
 }
 
+export interface WalletState {
+  coins: number;
+  usdt: number;
+  ton: number;
+  bnb: number;
+}
+
 export interface UserState {
   id: string;
   uid: string; 
   username: string;
-  crystals: number;
+  wallet: WalletState;
   xp: number;
   level: number;
   energy: number;
@@ -57,7 +65,7 @@ interface GameContextType {
   user: UserState;
   mine: () => { amount: number; isCritical: boolean } | null;
   upgrade: (upgradeId: string) => void;
-  addCrystals: (amount: number) => void;
+  addCoins: (amount: number) => void;
   watchAd: () => void;
   completeTask: (taskId: string) => void;
   registerWithdrawal: () => void;
@@ -69,7 +77,7 @@ interface GameContextType {
 const UPGRADES: Upgrade[] = [
   { id: 'drill', name: 'Nano Drill', baseCost: 100, baseBenefit: 1, type: 'tap' },
   { id: 'autominer', name: 'Auto-Miner', baseCost: 500, baseBenefit: 2, type: 'passive' },
-  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 50, type: 'tap' }, // Actually increases max energy in logic
+  { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 50, type: 'tap' },
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
@@ -80,7 +88,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     id: "user_temp",
     uid: "CN000000",
     username: "CyberMiner",
-    crystals: 1000,
+    wallet: {
+      coins: 1000,
+      usdt: 0,
+      ton: 0,
+      bnb: 0
+    },
     xp: 0,
     level: 1,
     energy: 1000,
@@ -90,7 +103,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tasksCompleted: 0,
     tier: "Silver",
     lastWithdrawalAt: null,
-    joinedAt: 0,
+    joinedAt: Date.now(),
     referralCode: "RN000000",
     referredBy: null,
     referralBonusClaimed: false,
@@ -119,8 +132,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(u => ({
       ...u,
       uid: u.uid === "CN000000" ? generatedUid : u.uid,
-      referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
-      joinedAt: u.joinedAt === 0 ? Date.now() : u.joinedAt
+      referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode
     }));
 
     if (typeof window !== "undefined") {
@@ -143,20 +155,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Passive Income and Energy Regen
   useEffect(() => {
     const interval = setInterval(() => {
       setUser(u => {
-        const now = Date.now();
         const passiveIncome = getPassiveIncome();
-        const newCrystals = u.crystals + (passiveIncome / 10); // Check every 100ms
+        const coinsAdded = (passiveIncome / 10);
         const newEnergy = Math.min(u.maxEnergy, u.energy + u.energyRegenRate / 10);
         
         return {
           ...u,
-          crystals: newCrystals,
+          wallet: {
+            ...u.wallet,
+            coins: (u.wallet?.coins || 0) + coinsAdded
+          },
           energy: newEnergy,
-          lastPassiveCollection: now
+          lastPassiveCollection: Date.now()
         };
       });
     }, 100);
@@ -172,7 +185,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(u => ({
       ...u,
-      crystals: u.crystals + amount,
+      wallet: {
+        ...u.wallet,
+        coins: (u.wallet?.coins || 0) + amount
+      },
       energy: Math.max(0, u.energy - 1),
       xp: u.xp + (isCritical ? 5 : 1),
       level: Math.floor((u.xp + (isCritical ? 5 : 1)) / 1000) + 1
@@ -188,10 +204,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentLevel = user.upgrades[upgradeId] || 0;
     const cost = Math.floor(upg.baseCost * Math.pow(1.5, currentLevel));
 
-    if (user.crystals >= cost) {
+    if ((user.wallet?.coins || 0) >= cost) {
       setUser(u => ({
         ...u,
-        crystals: u.crystals - cost,
+        wallet: {
+          ...u.wallet,
+          coins: (u.wallet?.coins || 0) - cost
+        },
         upgrades: {
           ...u.upgrades,
           [upgradeId]: currentLevel + 1
@@ -201,7 +220,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addCrystals = (amount: number) => setUser(u => ({ ...u, crystals: u.crystals + amount }));
+  const addCoins = (amount: number) => setUser(u => ({ 
+    ...u, 
+    wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount } 
+  }));
   
   const watchAd = () => {
     setUser(u => ({
@@ -209,7 +231,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       adsWatched: u.adsWatched + 1,
       ownReferralProgress: {
         ...u.ownReferralProgress,
-        adsWatched: u.ownReferralProgress.adsWatched + 1
+        adsWatched: (u.ownReferralProgress?.adsWatched || 0) + 1
       }
     }));
   };
@@ -222,7 +244,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return {
         ...u,
-        tasksCompleted: u.tasksCompleted + 1,
+        tasksCompleted: (u.tasksCompleted || 0) + 1,
         ownReferralProgress: newTasks
       };
     });
@@ -232,18 +254,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const claimReferralReward = (targetUid: string) => {
     setUser(u => {
-      const ref = u.referrals.find(r => r.uid === targetUid);
+      const ref = u.referrals?.find(r => r.uid === targetUid);
       if (!ref || ref.isRewarded) return u;
       
-      const { tgJoined, igFollowed, adsWatched } = ref.tasks;
+      const { tgJoined, igFollowed, adsWatched } = ref.tasks || {};
       const isEligible = tgJoined && igFollowed && adsWatched >= 5;
       
       if (!isEligible) return u;
 
       return {
         ...u,
-        crystals: u.crystals + 5000,
-        referralEarnings: u.referralEarnings + 5000,
+        wallet: {
+          ...u.wallet,
+          coins: (u.wallet?.coins || 0) + 5000
+        },
+        referralEarnings: (u.referralEarnings || 0) + 5000,
         referrals: u.referrals.map(r => r.uid === targetUid ? { ...r, isRewarded: true } : r)
       };
     });
@@ -251,7 +276,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, mine, upgrade, addCrystals, watchAd, completeTask, registerWithdrawal, claimReferralReward, getMiningPower, getPassiveIncome
+      user, mine, upgrade, addCoins, watchAd, completeTask, registerWithdrawal, claimReferralReward, getMiningPower, getPassiveIncome
     }}>
       {children}
     </GameContext.Provider>
