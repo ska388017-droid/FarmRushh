@@ -1,9 +1,10 @@
 import type {Metadata} from 'next';
 import './globals.css';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'FarmRush - Neon Cyber Farming',
-  description: 'The ultimate cyberpunk farming experience with rewards.',
+  title: 'FarmRush - Neon Cyber Mining',
+  description: 'The ultimate cyberpunk mining experience with rewards.',
 };
 
 export default function RootLayout({
@@ -23,7 +24,9 @@ export default function RootLayout({
         <script src='//libtl.com/sdk.js' data-zone='11042868' data-sdk='show_11042868' async></script>
       </head>
       <body className="font-body antialiased selection:bg-primary selection:text-white">
-        {children}
+        <FirebaseClientProvider>
+          {children}
+        </FirebaseClientProvider>
       </body>
     </html>
   );
