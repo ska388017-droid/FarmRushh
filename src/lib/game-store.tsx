@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useFirestore } from "@/firebase";
-import { collection, addDoc, doc, updateDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, query, where, getDocs, getDoc, arrayUnion, onSnapshot } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors";
 import { toast } from "@/hooks/use-toast";
@@ -23,6 +24,7 @@ export interface Referral {
   tasks: ReferralTasks;
   joinedAt: number;
   isRewarded: boolean;
+  isVerified: boolean;
 }
 
 export interface Upgrade {
@@ -125,7 +127,7 @@ const UPGRADES: Upgrade[] = [
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v7';
+const STORAGE_KEY = 'farmrush_user_v8';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -186,6 +188,96 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   });
 
+  // Sync user profile with Firestore
+  useEffect(() => {
+    if (!db || user.uid === "CN000000") return;
+    
+    const userRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as Partial<UserState>;
+        setUser(u => ({ ...u, ...data }));
+      } else {
+        // Initialize doc if missing
+        updateDoc(userRef, user).catch(() => {});
+      }
+    });
+    return () => unsubscribe();
+  }, [db, user.uid === "CN000000"]);
+
+  // Handle Referral Join Logic
+  useEffect(() => {
+    const initReferral = async () => {
+      if (!db || user.uid === "CN000000") return;
+
+      const tg = (window as any).Telegram?.WebApp;
+      const startParam = tg?.initDataUnsafe?.start_param;
+
+      if (startParam && !user.referredBy && startParam !== user.referralCode) {
+        console.log("Start param detected:", startParam);
+        
+        // Find the inviter
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("referralCode", "==", startParam));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const inviterDoc = querySnapshot.docs[0];
+          const inviterData = inviterDoc.data() as UserState;
+          
+          if (inviterData.uid === user.uid) {
+            toast({ title: "Self-Referral Blocked", description: "You cannot refer yourself." });
+            return;
+          }
+
+          // Add to inviter's referrals list
+          const newReferral: Referral = {
+            uid: user.uid,
+            username: user.username,
+            tasks: { tgJoined: false, igFollowed: false, adsWatched: 0 },
+            joinedAt: Date.now(),
+            isRewarded: false,
+            isVerified: false
+          };
+
+          await updateDoc(doc(db, "users", inviterData.uid), {
+            referrals: arrayUnion(newReferral)
+          });
+
+          // Mark current user as referred
+          setUser(u => ({ ...u, referredBy: inviterData.uid }));
+          updateDoc(doc(db, "users", user.uid), { referredBy: inviterData.uid });
+
+          toast({ title: "Welcome Bonus!", description: "You joined via referral! Complete 3 tasks to unlock bonus." });
+        }
+      }
+    };
+
+    initReferral();
+  }, [db, user.uid === "CN000000"]);
+
+  // Sync Referral Progress to Inviter
+  const syncReferralProgress = useCallback(async (updates: Partial<ReferralTasks>) => {
+    if (!db || !user.referredBy) return;
+
+    const inviterRef = doc(db, "users", user.referredBy);
+    const inviterSnap = await getDoc(inviterRef);
+    
+    if (inviterSnap.exists()) {
+      const inviterData = inviterSnap.data() as UserState;
+      const updatedReferrals = inviterData.referrals.map(ref => {
+        if (ref.uid === user.uid) {
+          const newTasks = { ...ref.tasks, ...updates };
+          const isVerified = newTasks.adsWatched >= 3 || Object.values(user.socialTasks).filter(s => s === 'completed').length >= 3;
+          return { ...ref, tasks: newTasks, isVerified };
+        }
+        return ref;
+      });
+
+      await updateDoc(inviterRef, { referrals: updatedReferrals });
+    }
+  }, [db, user.referredBy, user.socialTasks]);
+
   const getPassiveIncome = useCallback(() => {
     const autoMinerLevel = user.upgrades.autominer || 0;
     const photonLevel = user.upgrades.photon_collector || 0;
@@ -219,7 +311,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (u.vipStatus === "Gold") vMax = 5000;
       if (u.vipStatus === "Diamond") vMax = 10000;
       
-      // Daily Cinema Counter Reset
       const lastClaim = u.lastCinemaClaimAt || 0;
       const dayPassed = now - lastClaim > 24 * 60 * 60 * 1000;
       const cinemaReset = dayPassed ? 0 : u.cinemaAdsWatched;
@@ -358,14 +449,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const watchAd = (isCinema: boolean = false) => {
     const now = Date.now();
+    const newCount = user.adsWatched + 1;
     setUser(u => ({
       ...u,
-      adsWatched: u.adsWatched + 1,
+      adsWatched: newCount,
       lifetimeAds: (u.lifetimeAds || 0) + 1,
       lastAdAt: now,
       cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
-      ownReferralProgress: { ...u.ownReferralProgress, adsWatched: u.ownReferralProgress.adsWatched + 1 }
     }));
+    syncReferralProgress({ adsWatched: newCount });
   };
 
   const submitVIPRequest = async (plan: VIPPlan, txHash: string, price: number) => {
@@ -386,7 +478,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const claimAdMilestone = (milestoneId: string, rewardCoins: number, rewardTickets: number = 0) => {
     const now = Date.now();
     setUser(u => {
-      // Handle Cinema Daily specifically for daily reset
       if (milestoneId === "cinema_daily") {
         const lastClaim = u.lastCinemaClaimAt || 0;
         if (now - lastClaim < 24 * 60 * 60 * 1000) return u;
@@ -395,7 +486,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...u,
           wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins },
           lastCinemaClaimAt: now,
-          cinemaAdsWatched: 0 // Reset for next day
+          cinemaAdsWatched: 0
         };
       }
 
@@ -447,7 +538,44 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
   const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
-  const claimReferralMilestone = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
+  
+  const claimReferralMilestone = async (id: string, r: number) => {
+    if (!db) return;
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
+    await updateDoc(doc(db, "users", user.uid), {
+      claimedReferralMilestones: arrayUnion(id),
+      "wallet.coins": user.wallet.coins + r
+    });
+  };
+
+  const claimReferralReward = async (targetUid: string) => {
+    if (!db) return;
+
+    // Find the referral in current user's list
+    const updatedReferrals = user.referrals.map(ref => {
+      if (ref.uid === targetUid && ref.isVerified && !ref.isRewarded) {
+        return { ...ref, isRewarded: true };
+      }
+      return ref;
+    });
+
+    const reward = 5000;
+    setUser(u => ({ 
+      ...u, 
+      wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+      referralEarnings: u.referralEarnings + reward,
+      referrals: updatedReferrals
+    }));
+
+    await updateDoc(doc(db, "users", user.uid), {
+      referrals: updatedReferrals,
+      "wallet.coins": user.wallet.coins + reward,
+      referralEarnings: user.referralEarnings + reward
+    });
+
+    toast({ title: "Referral Claimed!", description: `+${reward.toLocaleString()} coins added to your vault.` });
+  };
+
   const claimOfflineEarnings = (t: boolean) => {
     if (user.energy < 10) return false;
     const amount = t ? offlineEarnings * 3 : offlineEarnings;
@@ -468,21 +596,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(u => {
       if (u.socialTasks[taskId] === 'completed') return u;
 
+      const newStatus = 'completed' as TaskStatus;
+      const completedCount = Object.values({ ...u.socialTasks, [taskId]: newStatus }).filter(s => s === 'completed').length;
+
+      // Update Inviter if milestone hit
+      if (u.referredBy && completedCount >= 3) {
+        syncReferralProgress({ tgJoined: taskId === 'tg_join', igFollowed: taskId === 'ig_follow' });
+      }
+
       return {
         ...u,
         wallet: { ...u.wallet, coins: u.wallet.coins + reward },
         tasksCompleted: u.tasksCompleted + 1,
-        socialTasks: { ...u.socialTasks, [taskId]: 'completed' as TaskStatus },
-        ownReferralProgress: {
-          ...u.ownReferralProgress,
-          [taskId === 'tg_join' ? 'tgJoined' : taskId === 'ig_follow' ? 'igFollowed' : '']: true
-        }
+        socialTasks: { ...u.socialTasks, [taskId]: newStatus },
       };
     });
   };
 
   const claimVault = () => {};
-  const claimReferralReward = (uid: string) => {};
   const feedPet = () => {};
   const incrementStreak = () => {};
   const claimHourlyAdBonus = () => {};
