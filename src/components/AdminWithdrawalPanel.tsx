@@ -25,7 +25,8 @@ import {
   ExternalLink,
   Coins,
   User,
-  CreditCard
+  CreditCard,
+  Gem
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -56,8 +57,6 @@ export const AdminWithdrawalPanel = () => {
     if (!db) return;
     try {
       const docRef = doc(db, "withdrawals", id);
-      // Note: In a real app, we need the doc ID. useCollection should provide it.
-      // Assuming useCollection implementation includes id
       await updateDoc(docRef, { status: newStatus });
       toast({ title: "Status Updated", description: `Request marked as ${newStatus}.` });
     } catch (e) {
@@ -71,7 +70,7 @@ export const AdminWithdrawalPanel = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-20 neon-text-primary animate-pulse font-black uppercase tracking-widest">Loading Requests...</div>;
+    return <div className="text-center py-20 neon-text-primary animate-pulse font-black uppercase tracking-widest">Scanning Blockchain Requests...</div>;
   }
 
   return (
@@ -108,7 +107,7 @@ export const AdminWithdrawalPanel = () => {
         {filteredWithdrawals.length === 0 ? (
           <div className="text-center py-12 glass-morphism rounded-3xl border-dashed border-white/10">
             <Clock className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-            <p className="text-xs text-muted-foreground uppercase font-black">No matching requests found</p>
+            <p className="text-xs text-muted-foreground uppercase font-black">No active requests</p>
           </div>
         ) : (
           filteredWithdrawals.map((req: any, i: number) => (
@@ -129,19 +128,20 @@ export const AdminWithdrawalPanel = () => {
 
                 <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/5">
                   <div className="space-y-1">
-                    <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Amount</p>
+                    <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Payout Value</p>
                     <div className="flex items-center gap-1.5">
-                      <Coins className="w-3 h-3 text-primary" />
-                      <p className="text-sm font-black text-white">₹{(req.coins / 1000).toFixed(2)}</p>
+                      <Gem className="w-3 h-3 text-primary" />
+                      <p className="text-sm font-black text-white">{req.usdtAmount?.toFixed(1) || (req.coins / 200000).toFixed(2)} USDT</p>
                     </div>
                     <p className="text-[8px] text-muted-foreground">{req.coins.toLocaleString()} Coins</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Method</p>
+                    <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Network/Method</p>
                     <div className="flex items-center gap-1.5">
                       <CreditCard className="w-3 h-3 text-secondary" />
                       <p className="text-sm font-black text-white uppercase tracking-tighter">{req.method}</p>
                     </div>
+                    <p className="text-[8px] text-secondary font-bold uppercase">{req.cooldownHours || 24}H COOLDOWN</p>
                   </div>
                 </div>
 
@@ -166,7 +166,7 @@ export const AdminWithdrawalPanel = () => {
                       onClick={() => updateStatus(req.id, "paid")}
                       className="flex-1 bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl"
                     >
-                      <CheckCircle2 className="w-3 h-3 mr-2" /> APPROVE & PAID
+                      <CheckCircle2 className="w-3 h-3 mr-2" /> MARK AS PAID
                     </Button>
                     <Button 
                       onClick={() => updateStatus(req.id, "rejected")}
@@ -179,8 +179,8 @@ export const AdminWithdrawalPanel = () => {
                 )}
                 
                 <div className="flex justify-between items-center text-[8px] text-muted-foreground/40 font-bold uppercase pt-2">
-                  <span>Created: {new Date(req.createdAt).toLocaleString()}</span>
-                  <span>ID: {req.id?.substring(0,8)}</span>
+                  <span>Timestamp: {new Date(req.createdAt).toLocaleString()}</span>
+                  <span>SYS_ID: {req.id?.substring(0,8)}</span>
                 </div>
               </div>
             </Card>

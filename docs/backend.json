@@ -41,18 +41,20 @@
     },
     "WithdrawalRequest": {
       "title": "Withdrawal Request",
-      "description": "A record of a user's request to withdraw funds.",
+      "description": "A record of a user's request to withdraw funds in USDT.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "username": { "type": "string" },
         "coins": { "type": "number" },
+        "usdtAmount": { "type": "number" },
         "method": { "type": "string" },
         "address": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "paid", "completed", "rejected"] },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "cooldownHours": { "type": "number" }
       },
-      "required": ["uid", "username", "coins", "method", "address", "status", "createdAt"]
+      "required": ["uid", "username", "coins", "usdtAmount", "method", "address", "status", "createdAt"]
     }
   },
   "auth": {

@@ -53,6 +53,7 @@ export interface UserState {
   tasksCompleted: number;
   tier: Tier;
   lastWithdrawalAt: number | null;
+  lastWithdrawalAmount: number | null;
   joinedAt: number;
   avatarUrl?: string;
   referralCode: string;
@@ -81,7 +82,7 @@ interface GameContextType {
   watchAd: () => void;
   activateBoost: () => void;
   completeTask: (taskId: string) => void;
-  registerWithdrawal: (method: string, address: string) => void;
+  registerWithdrawal: (method: string, address: string, coins: number, usdt: number) => void;
   claimReferralReward: (targetUid: string) => void;
   claimOfflineEarnings: (triple: boolean) => void;
   getMiningPower: () => number;
@@ -125,6 +126,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tasksCompleted: 0,
       tier: "Silver",
       lastWithdrawalAt: null,
+      lastWithdrawalAmount: null,
       joinedAt: Date.now(),
       referralCode: "RN000000",
       referredBy: null,
@@ -223,16 +225,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const power = getMiningPower();
     const amount = isCritical ? power * 5 : power;
 
-    setUser(u => ({
-      ...u,
-      wallet: {
-        ...u.wallet,
-        coins: (u.wallet?.coins || 0) + amount
-      },
-      energy: Math.max(0, u.energy - 1),
-      xp: u.xp + (isCritical ? 5 : 1),
-      level: Math.floor((u.xp + (isCritical ? 5 : 1)) / 1000) + 1
-    }));
+    setUser(u => {
+      const newXp = u.xp + (isCritical ? 5 : 1);
+      const newLevel = Math.floor(newXp / 1000) + 1;
+      return {
+        ...u,
+        wallet: {
+          ...u.wallet,
+          coins: (u.wallet?.coins || 0) + amount
+        },
+        energy: Math.max(0, u.energy - 1),
+        xp: newXp,
+        level: newLevel
+      };
+    });
 
     return { amount, isCritical };
   };
@@ -324,15 +330,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const registerWithdrawal = (method: string, address: string) => {
+  const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
+    const cooldownHours = usdt <= 2 ? 24 : usdt <= 10 ? 48 : 72; // Dynamic cooldown based on amount
+
     const withdrawalData = {
       uid: user.uid,
       username: user.username,
-      coins: user.wallet.coins,
+      coins: coins,
+      usdtAmount: usdt,
       method: method,
       address: address,
       status: "pending",
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      cooldownHours: cooldownHours
     };
 
     const withdrawalRef = collection(db, "withdrawals");
@@ -349,7 +359,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(u => ({ 
       ...u, 
       lastWithdrawalAt: Date.now(),
-      wallet: { ...u.wallet, coins: 0 }
+      lastWithdrawalAmount: usdt,
+      wallet: { ...u.wallet, coins: Math.max(0, u.wallet.coins - coins) }
     }));
   };
 
