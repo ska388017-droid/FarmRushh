@@ -22,7 +22,9 @@ import {
   Crown,
   Star,
   Zap,
-  Lock
+  Lock,
+  Diamond,
+  TrendingUp
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -57,12 +59,12 @@ export const ReferralSystem = () => {
   const pendingReferrals = user.referrals.length - verifiedReferrals;
 
   const milestones = [
-    { id: "ref_3", target: 3, reward: 5000, label: "Networker" },
-    { id: "ref_5", target: 5, reward: 10000, label: "Connector" },
-    { id: "ref_10", target: 10, reward: 25000, label: "Influencer" },
-    { id: "ref_25", target: 25, reward: 75000, label: "Ambassador" },
-    { id: "ref_50", target: 50, reward: 200000, label: "Tycoon" },
-    { id: "ref_100", target: 100, reward: 1000000, label: "God Elite" },
+    { id: "ref_3", target: 3, reward: 5000, label: "NETWORKER" },
+    { id: "ref_5", target: 5, reward: 10000, label: "CONNECTOR" },
+    { id: "ref_10", target: 10, reward: 25000, label: "INFLUENCER" },
+    { id: "ref_25", target: 25, reward: 75000, label: "AMBASSADOR" },
+    { id: "ref_50", target: 50, reward: 200000, label: "TYCOON" },
+    { id: "ref_100", target: 100, reward: 1000000, label: "LEGEND" },
   ];
 
   const leaderboard = [
@@ -75,7 +77,7 @@ export const ReferralSystem = () => {
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold neon-text-primary uppercase tracking-tighter">Network</h2>
-        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/30">
+        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/30 font-black">
           <Gift className="w-3 h-3 mr-1" /> REWARDS ACTIVE
         </Badge>
       </div>
@@ -91,11 +93,17 @@ export const ReferralSystem = () => {
             <div className="flex justify-center gap-8">
               <div className="text-center">
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Inviter gets</p>
-                <p className="text-xl font-black text-primary">5,000</p>
+                <div className="flex items-center justify-center gap-1.5">
+                   <p className="text-2xl font-black text-primary">5,000</p>
+                   <Diamond className="w-5 h-5 text-primary" />
+                </div>
               </div>
               <div className="text-center">
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Friend gets</p>
-                <p className="text-xl font-black text-secondary">2,000</p>
+                <div className="flex items-center justify-center gap-1.5">
+                   <p className="text-2xl font-black text-secondary">2,000</p>
+                   <Diamond className="w-5 h-5 text-secondary" />
+                </div>
               </div>
             </div>
           </div>
@@ -124,9 +132,15 @@ export const ReferralSystem = () => {
 
       {/* Referral Milestones Section */}
       <div className="space-y-4">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <Trophy className="w-3 h-3 text-primary" /> Network Milestones
-        </h3>
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground flex items-center gap-2">
+            <Trophy className="w-3 h-3 text-primary" /> Referral Milestones
+          </h3>
+          <span className="text-[8px] font-black text-secondary uppercase tracking-widest bg-secondary/10 px-2 py-0.5 rounded-full border border-secondary/20">
+            {verifiedReferrals} Verified
+          </span>
+        </div>
+        
         <div className="space-y-3">
           {milestones.map((m) => {
             const isClaimed = user.claimedReferralMilestones?.includes(m.id);
@@ -135,51 +149,78 @@ export const ReferralSystem = () => {
 
             return (
               <Card key={m.id} className={cn(
-                "glass-morphism p-4 border-white/5 relative overflow-hidden transition-all duration-500",
-                canClaim ? "border-primary/40 bg-primary/5 shadow-[0_0_20px_rgba(163,92,255,0.1)]" : "opacity-80"
+                "glass-morphism p-5 border-white/5 relative overflow-hidden transition-all duration-500",
+                canClaim ? "border-primary/50 bg-primary/10 shadow-[0_0_25px_rgba(163,92,255,0.2)]" : "opacity-80"
               )}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center border",
-                      isClaimed ? "bg-white/5 border-white/10" : 
-                      canClaim ? "bg-primary/20 border-primary/40 animate-pulse" : "bg-white/5 border-white/10"
-                    )}>
-                      {isClaimed ? <CheckCircle2 className="w-5 h-5 text-secondary" /> : 
-                       canClaim ? <Star className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-muted-foreground/30" />}
+                {/* Visual Glow */}
+                <div className={cn(
+                  "absolute -right-10 -top-10 w-32 h-32 blur-3xl rounded-full opacity-10 transition-colors",
+                  canClaim ? "bg-primary" : "bg-white/10"
+                )} />
+
+                <div className="flex flex-col space-y-4 relative z-10">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <h4 className={cn(
+                        "text-lg font-black tracking-tighter uppercase italic",
+                        canClaim ? "text-primary drop-shadow-[0_0_8px_rgba(163,92,255,0.5)]" : "text-white"
+                      )}>
+                        {m.label}
+                      </h4>
+                      <div className="flex items-center gap-1.5">
+                         <Users className="w-3 h-3 text-muted-foreground" />
+                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                           {m.target} Verified Friends
+                         </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-black text-white uppercase">{m.label}</p>
-                      <p className="text-[9px] text-muted-foreground uppercase font-bold">{m.target} Verified Friends</p>
+                    
+                    <div className="text-right">
+                       <div className="flex items-center justify-end gap-1.5">
+                          <span className={cn(
+                            "text-xl font-black italic",
+                            canClaim ? "neon-text-secondary" : "text-white"
+                          )}>
+                            +{m.reward.toLocaleString()}
+                          </span>
+                          <Diamond className={cn("w-4 h-4", canClaim ? "text-secondary" : "text-primary")} />
+                       </div>
+                       <p className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">BOUNTY REWARD</p>
                     </div>
                   </div>
-                  
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                      <span className={verifiedReferrals >= m.target ? "text-secondary font-black" : "text-muted-foreground"}>
+                        {verifiedReferrals >= m.target ? "GOAL REACHED" : `PROGRESS: ${verifiedReferrals} / ${m.target}`}
+                      </span>
+                      <span className="text-muted-foreground">{Math.floor(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2 bg-white/5" />
+                  </div>
+
                   {isClaimed ? (
-                    <Badge className="bg-secondary/20 text-secondary border-none text-[8px] font-black uppercase">CLAIMED</Badge>
+                    <div className="flex items-center justify-center gap-2 py-2.5 bg-secondary/10 border border-secondary/20 rounded-xl">
+                       <CheckCircle2 className="w-4 h-4 text-secondary" />
+                       <span className="text-[10px] font-black text-secondary uppercase tracking-widest">REWARD SECURED</span>
+                    </div>
                   ) : (
                     <Button 
-                      size="sm" 
                       disabled={!canClaim}
                       onClick={() => {
                         claimReferralMilestone(m.id, m.reward);
                         toast({ title: "Milestone Claimed!", description: `+${m.reward.toLocaleString()} Coins added to wallet!` });
                       }}
                       className={cn(
-                        "h-8 text-[9px] font-black rounded-lg px-4 transition-all",
-                        canClaim ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 text-muted-foreground"
+                        "w-full h-11 font-black text-xs uppercase tracking-[0.2em] transition-all duration-300",
+                        canClaim 
+                          ? "bg-secondary text-secondary-foreground shadow-[0_0_20px_rgba(57,255,20,0.5)] hover:scale-[1.02] border-none" 
+                          : "bg-white/5 text-muted-foreground border border-white/10 cursor-not-allowed"
                       )}
                     >
-                      {canClaim ? `CLAIM ${m.reward.toLocaleString()}` : `${verifiedReferrals}/${m.target}`}
+                      {canClaim ? "CLAIM BOUNTY" : `LOCKED: ${m.target - verifiedReferrals} MORE FRIENDS`}
                     </Button>
                   )}
-                </div>
-                
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-muted-foreground">
-                    <span>PROGRESS</span>
-                    <span>{verifiedReferrals} / {m.target}</span>
-                  </div>
-                  <Progress value={progress} className="h-1 bg-white/5" />
                 </div>
               </Card>
             );
