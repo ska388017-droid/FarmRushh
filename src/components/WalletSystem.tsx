@@ -22,9 +22,9 @@ export const WalletSystem = () => {
   const ton = user?.wallet?.ton || 0;
   const bnb = user?.wallet?.bnb || 0;
   const adsWatched = user?.adsWatched || 0;
+  const tasksCompleted = user?.tasksCompleted || 0;
   const lastWithdrawalAt = user?.lastWithdrawalAt || null;
 
-  // Memoize the query for history
   const historyQuery = useMemo(() => {
     if (!db || !user?.uid) return null;
     return query(
@@ -62,16 +62,21 @@ export const WalletSystem = () => {
       toast({ title: "Guard Alert", description: "Watch at least 20 ads to unlock withdrawals.", variant: "destructive" });
       return;
     }
+
+    if (tasksCompleted < 2) {
+      toast({ title: "Guard Alert", description: "Complete TG and IG tasks to unlock withdrawals.", variant: "destructive" });
+      return;
+    }
     
     registerWithdrawal(network, address);
     toast({ title: "Processing", description: `Withdrawal request of ₹${(coins / 1000).toFixed(2)} sent via ${network}.` });
-    setAddress(""); // Reset address
+    setAddress("");
   };
 
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold neon-text-primary">WALLET</h2>
+        <h2 className="text-2xl font-bold neon-text-primary uppercase tracking-tighter">Wallet</h2>
         <Badge variant="outline" className="border-primary/50 text-primary bg-primary/5 text-[10px] px-3">
           SECURE ESCROW
         </Badge>
@@ -129,22 +134,22 @@ export const WalletSystem = () => {
             </TabsContent>
             <TabsContent value="ton">
               <WithdrawForm 
-                title="TON Wallet" 
+                title="TON USDT" 
                 balance={ton} 
-                symbol="TON" 
+                symbol="USDT" 
                 address={address}
                 setAddress={setAddress}
-                onWithdraw={() => handleWithdraw("TON")} 
+                onWithdraw={() => handleWithdraw("TON USDT")} 
               />
             </TabsContent>
             <TabsContent value="bnb">
               <WithdrawForm 
-                title="BNB Wallet" 
+                title="BNB USDT" 
                 balance={bnb} 
-                symbol="BNB" 
+                symbol="USDT" 
                 address={address}
                 setAddress={setAddress}
-                onWithdraw={() => handleWithdraw("BNB Chain")} 
+                onWithdraw={() => handleWithdraw("BNB USDT")} 
               />
             </TabsContent>
           </div>
@@ -158,13 +163,13 @@ export const WalletSystem = () => {
           <CardContent className="p-4 pt-2">
             <div className="space-y-3">
               <GuardItem label="20 Ads Watched" current={adsWatched} target={20} />
+              <GuardItem label="Social Tasks" current={tasksCompleted} target={2} />
               <GuardItem label="Min. 50,000 Coins" current={Math.floor(coins)} target={50000} />
-              <GuardItem label="24h Cooldown" current={lastWithdrawalAt ? "Pending" : "Ready"} target="Ready" isSpecial />
+              <GuardItem label="24h Cooldown" current={lastWithdrawalAt ? (Date.now() - lastWithdrawalAt > 86400000 ? "Ready" : "Pending") : "Ready"} target="Ready" isSpecial />
             </div>
           </CardContent>
         </Card>
 
-        {/* Withdrawal History Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <History className="w-4 h-4 text-muted-foreground" />
@@ -206,7 +211,6 @@ export const WalletSystem = () => {
 const StatusBadge = ({ status }: { status: string }) => {
   const isPaid = status === "paid" || status === "completed";
   const isPending = status === "pending";
-  const isRejected = status === "rejected";
 
   return (
     <div className={cn(
@@ -214,7 +218,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       isPaid ? "text-secondary" : isPending ? "text-primary" : "text-destructive"
     )}>
       {isPaid ? <CheckCircle2 className="w-3 h-3" /> : isPending ? <Clock className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-      {status === "paid" ? "PAID" : status}
+      {status}
     </div>
   );
 };
