@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -5,13 +6,31 @@ import { useGame } from "@/lib/game-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Share2, Copy, Gift, Info, CheckCircle2, Trophy, ArrowRight, Timer, Instagram, Send, PlayCircle, Crown } from "lucide-react";
+import { 
+  Users, 
+  Share2, 
+  Copy, 
+  Gift, 
+  Info, 
+  CheckCircle2, 
+  Trophy, 
+  ArrowRight, 
+  Timer, 
+  Instagram, 
+  Send, 
+  PlayCircle, 
+  Crown,
+  Star,
+  Zap,
+  Lock
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 export const ReferralSystem = () => {
-  const { user, claimReferralReward } = useGame();
+  const { user, claimReferralReward, claimReferralMilestone } = useGame();
   const botUsername = "CashNova262_bot"; 
   const referralLink = `https://t.me/${botUsername}?start=${user.referralCode}`;
 
@@ -30,8 +49,21 @@ export const ReferralSystem = () => {
     }
   };
 
-  const activeReferrals = user.referrals.filter(r => r.isRewarded).length;
-  const pendingReferrals = user.referrals.filter(r => !r.isRewarded).length;
+  const verifiedReferrals = user.referrals.filter(r => {
+    const { tgJoined, igFollowed, adsWatched } = r.tasks;
+    return tgJoined && igFollowed && adsWatched >= 5;
+  }).length;
+
+  const pendingReferrals = user.referrals.length - verifiedReferrals;
+
+  const milestones = [
+    { id: "ref_3", target: 3, reward: 5000, label: "Networker" },
+    { id: "ref_5", target: 5, reward: 10000, label: "Connector" },
+    { id: "ref_10", target: 10, reward: 25000, label: "Influencer" },
+    { id: "ref_25", target: 25, reward: 75000, label: "Ambassador" },
+    { id: "ref_50", target: 50, reward: 200000, label: "Tycoon" },
+    { id: "ref_100", target: 100, reward: 1000000, label: "God Elite" },
+  ];
 
   const leaderboard = [
     { name: "CryptoWhale", referrals: 124, coins: "620,000", avatar: "https://picsum.photos/seed/l1/100" },
@@ -85,12 +117,76 @@ export const ReferralSystem = () => {
       </Card>
 
       <div className="grid grid-cols-3 gap-3">
-        <StatsBox label="Active" value={activeReferrals} />
+        <StatsBox label="Verified" value={verifiedReferrals} />
         <StatsBox label="Pending" value={pendingReferrals} />
         <StatsBox label="Earnings" value={user.referralEarnings} isCoins />
       </div>
 
-      {/* Leaderboard Section */}
+      {/* Referral Milestones Section */}
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <Trophy className="w-3 h-3 text-primary" /> Network Milestones
+        </h3>
+        <div className="space-y-3">
+          {milestones.map((m) => {
+            const isClaimed = user.claimedReferralMilestones?.includes(m.id);
+            const progress = Math.min(100, (verifiedReferrals / m.target) * 100);
+            const canClaim = verifiedReferrals >= m.target && !isClaimed;
+
+            return (
+              <Card key={m.id} className={cn(
+                "glass-morphism p-4 border-white/5 relative overflow-hidden transition-all duration-500",
+                canClaim ? "border-primary/40 bg-primary/5 shadow-[0_0_20px_rgba(163,92,255,0.1)]" : "opacity-80"
+              )}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center border",
+                      isClaimed ? "bg-white/5 border-white/10" : 
+                      canClaim ? "bg-primary/20 border-primary/40 animate-pulse" : "bg-white/5 border-white/10"
+                    )}>
+                      {isClaimed ? <CheckCircle2 className="w-5 h-5 text-secondary" /> : 
+                       canClaim ? <Star className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-muted-foreground/30" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase">{m.label}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase font-bold">{m.target} Verified Friends</p>
+                    </div>
+                  </div>
+                  
+                  {isClaimed ? (
+                    <Badge className="bg-secondary/20 text-secondary border-none text-[8px] font-black uppercase">CLAIMED</Badge>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      disabled={!canClaim}
+                      onClick={() => {
+                        claimReferralMilestone(m.id, m.reward);
+                        toast({ title: "Milestone Claimed!", description: `+${m.reward.toLocaleString()} Coins added to wallet!` });
+                      }}
+                      className={cn(
+                        "h-8 text-[9px] font-black rounded-lg px-4 transition-all",
+                        canClaim ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 text-muted-foreground"
+                      )}
+                    >
+                      {canClaim ? `CLAIM ${m.reward.toLocaleString()}` : `${verifiedReferrals}/${m.target}`}
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-muted-foreground">
+                    <span>PROGRESS</span>
+                    <span>{verifiedReferrals} / {m.target}</span>
+                  </div>
+                  <Progress value={progress} className="h-1 bg-white/5" />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="space-y-4">
         <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 px-1 flex items-center gap-2">
           <Crown className="w-3 h-3 text-secondary" /> Network Leaders
@@ -145,7 +241,10 @@ export const ReferralSystem = () => {
                 <Card key={ref.uid} className="glass-morphism p-4 border-white/5">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <p className="text-sm font-bold text-white tracking-tight">{ref.username}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-white tracking-tight">{ref.username}</p>
+                        {isEligible && <Badge className="bg-secondary/10 text-secondary border-none text-[8px] font-black px-1.5 h-4 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> VERIFIED</Badge>}
+                      </div>
                       <p className="text-[9px] text-muted-foreground uppercase font-mono">{ref.uid}</p>
                     </div>
                     {ref.isRewarded ? (

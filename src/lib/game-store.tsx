@@ -74,6 +74,7 @@ export interface UserState {
   lastVaultClaimAt: number | null;
   comboStreak: number;
   claimedAdMilestones: string[];
+  claimedReferralMilestones: string[];
   unlockedChests: string[];
   inventory: {
     petFood: number;
@@ -94,6 +95,7 @@ interface GameContextType {
   activateBoost: () => void;
   completeTask: (taskId: string) => void;
   claimAdMilestone: (milestoneId: string, rewardCoins: number, rewardTickets?: number) => void;
+  claimReferralMilestone: (milestoneId: string, rewardCoins: number) => void;
   registerWithdrawal: (method: string, address: string, coins: number, usdt: number) => void;
   claimReferralReward: (targetUid: string) => void;
   claimOfflineEarnings: (triple: boolean) => void;
@@ -124,7 +126,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Migrations/Defaults for new properties
         return {
           ...parsed,
           lifetimeAds: parsed.lifetimeAds || 0,
@@ -133,6 +134,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastHourlyAdAt: parsed.lastHourlyAdAt || null,
           lotteryEntries: parsed.lotteryEntries || 0,
           unlockedChests: parsed.unlockedChests || [],
+          claimedReferralMilestones: parsed.claimedReferralMilestones || [],
         };
       }
     }
@@ -170,6 +172,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastVaultClaimAt: null,
       comboStreak: 0,
       claimedAdMilestones: [],
+      claimedReferralMilestones: [],
       unlockedChests: [],
       inventory: { petFood: 0, spinTickets: 0 }
     };
@@ -306,7 +309,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const watchAd = (isCinema: boolean = false) => {
     const now = Date.now();
     setUser(u => {
-      // Streak logic: if last ad was < 5 mins ago, increment streak (max 10)
       const lastAt = u.lastAdAt || 0;
       const isStreaking = now - lastAt < 300000;
       const newStreak = isStreaking ? Math.min(10, u.adStreak + 1) : 1;
@@ -402,6 +404,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const claimReferralMilestone = (milestoneId: string, rewardCoins: number) => {
+    setUser(u => {
+      if (u.claimedReferralMilestones?.includes(milestoneId)) return u;
+      return {
+        ...u,
+        wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins },
+        claimedReferralMilestones: [...(u.claimedReferralMilestones || []), milestoneId]
+      };
+    });
+  };
+
   const completeTask = (taskId: string) => {
     setUser(u => {
       const newTasks = { ...u.ownReferralProgress };
@@ -417,7 +430,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
-    const cooldownHours = usdt <= 2 ? 24 : usdt <= 10 ? 48 : 72; // Dynamic cooldown based on amount
+    const cooldownHours = usdt <= 2 ? 24 : usdt <= 10 ? 48 : 72;
 
     const withdrawalData = {
       uid: user.uid,
@@ -480,7 +493,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
     }}>
       {children}
     </GameContext.Provider>
