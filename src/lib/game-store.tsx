@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useFirestore } from "@/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors";
 
@@ -68,6 +68,7 @@ export interface UserState {
 
 interface GameContextType {
   user: UserState;
+  offlineEarnings: number;
   mine: () => { amount: number; isCritical: boolean } | null;
   upgrade: (upgradeId: string) => void;
   addCoins: (amount: number) => void;
@@ -76,6 +77,7 @@ interface GameContextType {
   completeTask: (taskId: string) => void;
   registerWithdrawal: (method: string, address: string) => void;
   claimReferralReward: (targetUid: string) => void;
+  claimOfflineEarnings: (triple: boolean) => void;
   getMiningPower: () => number;
   getPassiveIncome: () => number;
 }
@@ -87,47 +89,44 @@ const UPGRADES: Upgrade[] = [
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
+const STORAGE_KEY = 'farmrush_user_v1';
+
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const db = useFirestore();
-  const [user, setUser] = useState<UserState>({
-    id: "user_temp",
-    uid: "CN000000",
-    username: "Operator",
-    wallet: {
-      coins: 1000,
-      usdt: 0,
-      ton: 0,
-      bnb: 0
-    },
-    xp: 0,
-    level: 1,
-    energy: 1000,
-    maxEnergy: 1000,
-    energyRegenRate: 1,
-    adsWatched: 0,
-    tasksCompleted: 0,
-    tier: "Silver",
-    lastWithdrawalAt: null,
-    joinedAt: Date.now(),
-    referralCode: "RN000000",
-    referredBy: null,
-    referralBonusClaimed: false,
-    referralEarnings: 0,
-    referrals: [],
-    ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
-    upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
-    lastPassiveCollection: Date.now(),
-    boostEndTime: null
+  const [offlineEarnings, setOfflineEarnings] = useState(0);
+  const [user, setUser] = useState<UserState>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    }
+    return {
+      id: "user_temp",
+      uid: "CN000000",
+      username: "Operator",
+      wallet: { coins: 1000, usdt: 0, ton: 0, bnb: 0 },
+      xp: 0,
+      level: 1,
+      energy: 1000,
+      maxEnergy: 1000,
+      energyRegenRate: 1,
+      adsWatched: 0,
+      tasksCompleted: 0,
+      tier: "Silver",
+      lastWithdrawalAt: null,
+      joinedAt: Date.now(),
+      referralCode: "RN000000",
+      referredBy: null,
+      referralBonusClaimed: false,
+      referralEarnings: 0,
+      referrals: [],
+      ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
+      upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
+      lastPassiveCollection: Date.now(),
+      boostEndTime: null
+    };
   });
-
-  const getMiningPower = useCallback(() => {
-    const drillLevel = user.upgrades.drill || 0;
-    const basePower = 1 + drillLevel * 2;
-    const isBoosted = user.boostEndTime && Date.now() < user.boostEndTime;
-    return isBoosted ? basePower * 2 : basePower;
-  }, [user.upgrades.drill, user.boostEndTime]);
 
   const getPassiveIncome = useCallback(() => {
     const autoMinerLevel = user.upgrades.autominer || 0;
@@ -135,7 +134,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (autoMinerLevel * 2) + (photonLevel * 10);
   }, [user.upgrades.autominer, user.upgrades.photon_collector]);
 
+  // Persist user state
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  }, [user]);
+
+  // Initial load logic: handle offline earnings and telegram data
+  useEffect(() => {
+    const now = Date.now();
+    const elapsedSeconds = (now - user.lastPassiveCollection) / 1000;
+    const passiveRate = getPassiveIncome();
+    const earnings = Math.floor(elapsedSeconds * passiveRate);
+
+    if (earnings > 1) {
+      setOfflineEarnings(earnings);
+    }
+
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
     const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
 
@@ -145,26 +159,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode
     }));
 
-    if (typeof window !== "undefined") {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg) {
-        tg.expand();
-        const tgUser = tg.initDataUnsafe?.user;
-        const startParam = tg.initDataUnsafe?.start_param; 
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      const tgUser = tg.initDataUnsafe?.user;
+      const startParam = tg.initDataUnsafe?.start_param; 
 
-        if (tgUser) {
-          setUser(u => ({
-            ...u,
-            username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
-            avatarUrl: tgUser.photo_url,
-            id: tgUser.id.toString(),
-            referredBy: !u.referredBy && startParam && startParam !== u.referralCode ? startParam : u.referredBy
-          }));
-        }
+      if (tgUser) {
+        setUser(u => ({
+          ...u,
+          username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
+          avatarUrl: tgUser.photo_url,
+          id: tgUser.id.toString(),
+          referredBy: !u.referredBy && startParam && startParam !== u.referralCode ? startParam : u.referredBy
+        }));
       }
     }
   }, []);
 
+  // Passive income interval
   useEffect(() => {
     const interval = setInterval(() => {
       setUser(u => {
@@ -185,6 +198,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 100);
     return () => clearInterval(interval);
   }, [getPassiveIncome]);
+
+  const getMiningPower = useCallback(() => {
+    const drillLevel = user.upgrades.drill || 0;
+    const basePower = 1 + drillLevel * 2;
+    const isBoosted = user.boostEndTime && Date.now() < user.boostEndTime;
+    return isBoosted ? basePower * 2 : basePower;
+  }, [user.upgrades.drill, user.boostEndTime]);
 
   const mine = () => {
     if (user.energy < 1) return null;
@@ -249,7 +269,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const activateBoost = () => {
     setUser(u => ({
       ...u,
-      boostEndTime: Date.now() + 60000 // 60 seconds of 2X Mining
+      boostEndTime: Date.now() + 60000 // 60 seconds
     }));
   };
 
@@ -292,7 +312,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(u => ({ 
       ...u, 
       lastWithdrawalAt: Date.now(),
-      wallet: { ...u.wallet, coins: 0 } // Deduct all coins on request
+      wallet: { ...u.wallet, coins: 0 }
     }));
   };
 
@@ -318,9 +338,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const claimOfflineEarnings = (triple: boolean) => {
+    const finalAmount = triple ? offlineEarnings * 3 : offlineEarnings;
+    addCoins(finalAmount);
+    setOfflineEarnings(0);
+  };
+
   return (
     <GameContext.Provider value={{ 
-      user, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, registerWithdrawal, claimReferralReward, getMiningPower, getPassiveIncome
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome
     }}>
       {children}
     </GameContext.Provider>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -13,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Badge } from "@/components/ui/badge";
 import { Diamond, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { OfflineEarningsModal } from "@/components/OfflineEarningsModal";
 
 const AppContent = () => {
   const [activeTab, setActiveTab] = useState("mining");
@@ -63,6 +65,7 @@ const AppContent = () => {
       </section>
 
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      <OfflineEarningsModal />
       <Toaster />
     </main>
   );
