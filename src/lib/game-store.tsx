@@ -64,6 +64,12 @@ export interface UserState {
   upgrades: Record<string, number>;
   lastPassiveCollection: number;
   boostEndTime: number | null;
+  lastVaultClaimAt: number | null;
+  comboStreak: number;
+  inventory: {
+    petFood: number;
+    spinTickets: number;
+  };
 }
 
 interface GameContextType {
@@ -80,6 +86,10 @@ interface GameContextType {
   claimOfflineEarnings: (triple: boolean) => void;
   getMiningPower: () => number;
   getPassiveIncome: () => number;
+  refillEnergy: () => void;
+  claimVault: () => void;
+  feedPet: () => void;
+  incrementStreak: () => void;
 }
 
 const UPGRADES: Upgrade[] = [
@@ -124,7 +134,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
       upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
       lastPassiveCollection: Date.now(),
-      boostEndTime: null
+      boostEndTime: null,
+      lastVaultClaimAt: null,
+      comboStreak: 0,
+      inventory: { petFood: 0, spinTickets: 0 }
     };
   });
 
@@ -134,12 +147,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (autoMinerLevel * 2) + (photonLevel * 10);
   }, [user.upgrades.autominer, user.upgrades.photon_collector]);
 
-  // Persist user state
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
   }, [user]);
 
-  // Initial load logic: handle offline earnings and telegram data
   useEffect(() => {
     const now = Date.now();
     const elapsedSeconds = (now - user.lastPassiveCollection) / 1000;
@@ -177,7 +188,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Passive income interval
   useEffect(() => {
     const interval = setInterval(() => {
       setUser(u => {
@@ -269,8 +279,35 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const activateBoost = () => {
     setUser(u => ({
       ...u,
-      boostEndTime: Date.now() + 60000 // 60 seconds
+      boostEndTime: Date.now() + 60000
     }));
+  };
+
+  const refillEnergy = () => {
+    setUser(u => ({
+      ...u,
+      energy: u.maxEnergy
+    }));
+  };
+
+  const claimVault = () => {
+    const reward = 5000 + Math.floor(Math.random() * 5000);
+    setUser(u => ({
+      ...u,
+      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
+      lastVaultClaimAt: Date.now()
+    }));
+  };
+
+  const feedPet = () => {
+    setUser(u => ({
+      ...u,
+      inventory: { ...u.inventory, petFood: u.inventory.petFood + 1 }
+    }));
+  };
+
+  const incrementStreak = () => {
+    setUser(u => ({ ...u, comboStreak: u.comboStreak + 1 }));
   };
 
   const completeTask = (taskId: string) => {
@@ -346,7 +383,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
     }}>
       {children}
     </GameContext.Provider>
