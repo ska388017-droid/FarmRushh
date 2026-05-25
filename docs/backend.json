@@ -3,39 +3,26 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Stores user game stats, wallet balance, and Telegram profile information.",
+      "description": "Stores user game stats, wallet balance, and VIP status information.",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "Unique identifier for the user (CNXXXXXX format)." },
+        "uid": { "type": "string" },
         "username": { "type": "string" },
-        "telegramId": { "type": "string" },
-        "avatarUrl": { "type": "string" },
         "wallet": {
           "type": "object",
           "properties": {
             "coins": { "type": "number" },
-            "usdt": { "type": "number" },
-            "ton": { "type": "number" },
-            "bnb": { "type": "number" }
+            "usdt": { "type": "number" }
           }
         },
         "xp": { "type": "number" },
         "level": { "type": "number" },
         "energy": { "type": "number" },
         "maxEnergy": { "type": "number" },
-        "adsWatched": { "type": "number" },
-        "tasksCompleted": { "type": "number" },
-        "lastWithdrawalAt": { "type": "number" },
         "tier": { "type": "string", "enum": ["Silver", "Gold", "Diamond", "God Elite"] },
-        "joinedAt": { "type": "number" },
-        "referralCode": { "type": "string" },
-        "referredBy": { "type": "string" },
-        "referralEarnings": { "type": "number" },
-        "upgrades": {
-          "type": "object",
-          "additionalProperties": { "type": "number" }
-        },
-        "lastPassiveCollection": { "type": "number" }
+        "vipStatus": { "type": "string", "enum": ["none", "Silver", "Gold", "Diamond"] },
+        "vipExpiry": { "type": "number", "description": "Timestamp when VIP expires." },
+        "referralCode": { "type": "string" }
       },
       "required": ["uid", "username", "wallet", "referralCode"]
     },
@@ -50,11 +37,25 @@
         "usdtAmount": { "type": "number" },
         "method": { "type": "string" },
         "address": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "paid", "completed", "rejected"] },
-        "createdAt": { "type": "number" },
-        "cooldownHours": { "type": "number" }
+        "status": { "type": "string", "enum": ["pending", "paid", "rejected"] },
+        "createdAt": { "type": "number" }
       },
       "required": ["uid", "username", "coins", "usdtAmount", "method", "address", "status", "createdAt"]
+    },
+    "VIPRequest": {
+      "title": "VIP Purchase Request",
+      "description": "Manual crypto payment verification request for VIP status.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "plan": { "type": "string", "enum": ["Silver", "Gold", "Diamond"] },
+        "txHash": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "number" },
+        "price": { "type": "number" }
+      },
+      "required": ["uid", "username", "plan", "txHash", "status", "createdAt"]
     }
   },
   "auth": {
@@ -67,7 +68,11 @@
     },
     "/withdrawals/{withdrawalId}": {
       "schema": "#/backend/entities/WithdrawalRequest",
-      "description": "Individual withdrawal requests for administrative processing."
+      "description": "Withdrawal requests."
+    },
+    "/vip_requests/{requestId}": {
+      "schema": "#/backend/entities/VIPRequest",
+      "description": "VIP purchase verification requests."
     }
   }
 }
