@@ -1,6 +1,11 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useFirestore } from "@/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError, type SecurityRuleContext } from "@/firebase/errors";
 
 export type Tier = "Silver" | "Gold" | "Diamond" | "God Elite";
 
@@ -67,7 +72,7 @@ interface GameContextType {
   addCoins: (amount: number) => void;
   watchAd: () => void;
   completeTask: (taskId: string) => void;
-  registerWithdrawal: () => void;
+  registerWithdrawal: (method: string, address: string) => void;
   claimReferralReward: (targetUid: string) => void;
   getMiningPower: () => number;
   getPassiveIncome: () => number;
@@ -83,6 +88,7 @@ const UPGRADES: Upgrade[] = [
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const db = useFirestore();
   const [user, setUser] = useState<UserState>({
     id: "user_temp",
     uid: "CN000000",
@@ -249,7 +255,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const registerWithdrawal = () => setUser(u => ({ ...u, lastWithdrawalAt: Date.now() }));
+  const registerWithdrawal = (method: string, address: string) => {
+    const withdrawalData = {
+      uid: user.uid,
+      username: user.username,
+      coins: user.wallet.coins,
+      method: method,
+      address: address,
+      status: "pending",
+      createdAt: Date.now()
+    };
+
+    const withdrawalRef = collection(db, "withdrawals");
+    addDoc(withdrawalRef, withdrawalData)
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: withdrawalRef.path,
+          operation: 'create',
+          requestResourceData: withdrawalData,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      });
+
+    setUser(u => ({ 
+      ...u, 
+      lastWithdrawalAt: Date.now(),
+      wallet: { ...u.wallet, coins: 0 } // Deduct all coins on request
+    }));
+  };
 
   const claimReferralReward = (targetUid: string) => {
     setUser(u => {

@@ -38,6 +38,21 @@
         "lastPassiveCollection": { "type": "number" }
       },
       "required": ["uid", "username", "wallet", "referralCode"]
+    },
+    "WithdrawalRequest": {
+      "title": "Withdrawal Request",
+      "description": "A record of a user's request to withdraw funds.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "coins": { "type": "number" },
+        "method": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "username", "coins", "method", "address", "status", "createdAt"]
     }
   },
   "auth": {
@@ -47,6 +62,10 @@
     "/users/{userId}": {
       "schema": "#/backend/entities/UserProfile",
       "description": "User profile document indexed by Firebase Auth UID."
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "#/backend/entities/WithdrawalRequest",
+      "description": "Individual withdrawal requests for administrative processing."
     }
   }
 }

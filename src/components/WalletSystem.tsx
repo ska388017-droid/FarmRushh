@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useGame } from "@/lib/game-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,9 @@ import { toast } from "@/hooks/use-toast";
 
 export const WalletSystem = () => {
   const { user, registerWithdrawal } = useGame();
+  const [address, setAddress] = useState("");
 
-  // Safeguard values to prevent runtime crashes
   const coins = user?.wallet?.coins || 0;
-  const usdt = user?.wallet?.usdt || 0;
   const ton = user?.wallet?.ton || 0;
   const bnb = user?.wallet?.bnb || 0;
   const adsWatched = user?.adsWatched || 0;
@@ -25,6 +24,11 @@ export const WalletSystem = () => {
     const MIN_WITHDRAW_COINS = 50000;
     const cooldownMs = 24 * 60 * 60 * 1000;
     const now = Date.now();
+
+    if (!address.trim()) {
+      toast({ title: "Address Required", description: "Please enter your UPI ID or wallet address.", variant: "destructive" });
+      return;
+    }
 
     if (coins < MIN_WITHDRAW_COINS) {
       toast({ title: "Insufficient Balance", description: "You need at least 50,000 coins to withdraw.", variant: "destructive" });
@@ -42,8 +46,9 @@ export const WalletSystem = () => {
       return;
     }
     
-    registerWithdrawal();
+    registerWithdrawal(network, address);
     toast({ title: "Processing", description: `Withdrawal request of ₹${(coins / 1000).toFixed(2)} sent via ${network}.` });
+    setAddress(""); // Reset address
   };
 
   return (
@@ -97,13 +102,33 @@ export const WalletSystem = () => {
           
           <div className="mt-4">
             <TabsContent value="upi">
-              <WithdrawForm title="UPI Instant Payout" subtitle="Requires valid UPI ID" onWithdraw={() => handleWithdraw("UPI")} />
+              <WithdrawForm 
+                title="UPI Instant Payout" 
+                subtitle="Requires valid UPI ID" 
+                address={address}
+                setAddress={setAddress}
+                onWithdraw={() => handleWithdraw("UPI")} 
+              />
             </TabsContent>
             <TabsContent value="ton">
-              <WithdrawForm title="TON Wallet" balance={ton} symbol="TON" onWithdraw={() => handleWithdraw("TON")} />
+              <WithdrawForm 
+                title="TON Wallet" 
+                balance={ton} 
+                symbol="TON" 
+                address={address}
+                setAddress={setAddress}
+                onWithdraw={() => handleWithdraw("TON")} 
+              />
             </TabsContent>
             <TabsContent value="bnb">
-              <WithdrawForm title="BNB Wallet" balance={bnb} symbol="BNB" onWithdraw={() => handleWithdraw("BNB Chain")} />
+              <WithdrawForm 
+                title="BNB Wallet" 
+                balance={bnb} 
+                symbol="BNB" 
+                address={address}
+                setAddress={setAddress}
+                onWithdraw={() => handleWithdraw("BNB Chain")} 
+              />
             </TabsContent>
           </div>
         </Tabs>
@@ -138,7 +163,7 @@ const GuardItem = ({ label, current, target, isSpecial }: any) => {
   );
 };
 
-const WithdrawForm = ({ title, subtitle, balance, symbol, onWithdraw }: any) => (
+const WithdrawForm = ({ title, subtitle, balance, symbol, address, setAddress, onWithdraw }: any) => (
   <div className="glass-morphism p-4 rounded-2xl space-y-4 border-white/5 bg-gradient-to-br from-white/5 to-transparent">
     <div className="flex justify-between items-center">
       <div>
@@ -152,7 +177,13 @@ const WithdrawForm = ({ title, subtitle, balance, symbol, onWithdraw }: any) => 
       <Badge variant="outline" className="border-secondary/20 text-secondary bg-secondary/5 text-[9px]">FASTEST</Badge>
     </div>
     <div className="space-y-2">
-      <input type="text" placeholder="Enter ID/Address" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 font-mono" />
+      <input 
+        type="text" 
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        placeholder="Enter ID/Address" 
+        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 font-mono" 
+      />
       <Button onClick={onWithdraw} className="w-full bg-primary hover:bg-primary/80 font-black group h-12 rounded-xl shadow-lg shadow-primary/10">
         EXECUTE WITHDRAWAL <ArrowUpRight className="ml-2 w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
       </Button>
