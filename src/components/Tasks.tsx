@@ -26,26 +26,43 @@ import {
   Gamepad2,
   Gift,
   Lock,
-  ArrowUpCircle
+  ArrowUpCircle,
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AdGate } from "@/components/ads/AdGate";
 import { cn } from "@/lib/utils";
 
 export const Tasks = () => {
-  const { addCoins, completeTask, claimAdMilestone, enterAdLottery, claimAdChest, user, watchAd, refillEnergy } = useGame();
+  const { addCoins, completeTask, updateTaskStatus, claimAdMilestone, claimAdChest, enterAdLottery, user, watchAd, refillEnergy } = useGame();
 
-  const handleTask = (taskId: string, coins: number) => {
-    const isCompleted = taskId === "tg_join" ? user.ownReferralProgress.tgJoined : taskId === "ig_follow" ? user.ownReferralProgress.igFollowed : false;
+  const handleTaskAction = (taskId: string, url: string, reward: number) => {
+    const status = user.socialTasks[taskId] || 'not_started';
     
-    if (isCompleted) return;
-    
-    toast({ title: "Redirecting...", description: "Please complete the task and return." });
-    setTimeout(() => {
-      addCoins(coins);
-      completeTask(taskId);
-      toast({ title: "Verified", description: `+${coins} CyberCoins rewarded!` });
-    }, 3000);
+    if (status === 'completed') return;
+
+    if (status === 'not_started') {
+      // Step 1: Redirect to link
+      toast({ title: "Redirecting...", description: "Join our community to qualify for rewards." });
+      
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg && url.includes('t.me')) {
+        tg.openTelegramLink(url);
+      } else {
+        window.open(url, "_blank");
+      }
+
+      // Mark as opened
+      updateTaskStatus(taskId, 'opened');
+      return;
+    }
+
+    if (status === 'opened') {
+      // Step 2: User returns and claims
+      completeTask(taskId, reward);
+      toast({ title: "Task Validated", description: `+${reward.toLocaleString()} CyberCoins added to vault!` });
+    }
   };
 
   const adMilestones = [
@@ -63,9 +80,33 @@ export const Tasks = () => {
   ];
 
   const socialTasks = [
-    { id: "tg_join", title: "Join CashNovazhv", subtitle: "Official Telegram Channel", reward: 1000, icon: Send, color: "bg-blue-500" },
-    { id: "ig_follow", title: "Follow cashnova503", subtitle: "Official Instagram Page", reward: 1000, icon: Instagram, color: "bg-pink-500" },
-    { id: "yt_sub", title: "Subscribe FarmRush", subtitle: "Earn 2x Boosters", reward: 2000, icon: ArrowRight, color: "bg-red-500" },
+    { 
+      id: "tg_join", 
+      title: "Join CashNovazhv", 
+      subtitle: "Official Telegram Channel", 
+      reward: 1000, 
+      icon: Send, 
+      color: "bg-blue-500",
+      url: "https://t.me/CashNovazhv"
+    },
+    { 
+      id: "ig_follow", 
+      title: "Follow cashnova503", 
+      subtitle: "Official Instagram Page", 
+      reward: 1000, 
+      icon: Instagram, 
+      color: "bg-pink-500",
+      url: "https://www.instagram.com/cashnova503?igsh=a2w1bGUwam9xbzE="
+    },
+    { 
+      id: "yt_sub", 
+      title: "Subscribe FarmRush", 
+      subtitle: "Earn 2x Boosters", 
+      reward: 2000, 
+      icon: MonitorPlay, 
+      color: "bg-red-500",
+      url: "https://youtube.com/@FarmRushOfficial"
+    },
   ];
 
   const cinemaProgress = Math.min(100, ((user.cinemaAdsWatched || 0) / 5) * 100);
@@ -85,7 +126,6 @@ export const Tasks = () => {
         </div>
       </div>
 
-      {/* Cinema Rewards Section */}
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
           <Clapperboard className="w-3 h-3 text-primary" /> Cinema Rewards
@@ -140,12 +180,67 @@ export const Tasks = () => {
         </Card>
       </div>
 
-      {/* Video Chests Section */}
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <Coins className="w-3 h-3 text-primary" /> Operator Missions
+        </h3>
+        <div className="space-y-3">
+          {socialTasks.map((task) => {
+            const status = user.socialTasks[task.id] || 'not_started';
+            const isDone = status === 'completed';
+            const isOpened = status === 'opened';
+
+            return (
+              <Card key={task.id} className="glass-morphism overflow-hidden p-4 group border-white/5 hover:border-white/10 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "p-3 rounded-2xl bg-opacity-20 text-white shadow-inner",
+                      task.color
+                    )}>
+                      <task.icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-white tracking-tight">{task.title}</h4>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{task.subtitle}</p>
+                    </div>
+                  </div>
+                  
+                  {isDone ? (
+                    <div className="flex flex-col items-center min-w-[80px]">
+                      <CheckCircle2 className="w-6 h-6 text-secondary" />
+                      <span className="text-[8px] text-secondary font-black">VALIDATED</span>
+                    </div>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleTaskAction(task.id, task.url, task.reward)}
+                      className={cn(
+                        "font-black px-4 rounded-xl shadow-lg min-w-[80px] h-10 transition-all duration-300",
+                        isOpened ? "bg-secondary text-secondary-foreground animate-pulse" : "bg-primary hover:bg-primary/80 text-white"
+                      )}
+                    >
+                      {isOpened ? (
+                        <div className="flex items-center gap-1.5">
+                          CLAIM
+                        </div>
+                      ) : (
+                        `+${task.reward}`
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
           <Box className="w-3 h-3 text-secondary" /> Video Chests
         </h3>
-        <p className="text-[8px] text-muted-foreground uppercase font-black px-1 -mt-2">Cost: 2 Energy per Chest</p>
+        <p className="text-[8px] text-muted-foreground uppercase font-black px-1 -mt-2">Cost: 15 Energy per Chest</p>
         <div className="grid grid-cols-3 gap-3">
           {videoChests.map((chest) => {
             const isUnlocked = user.unlockedChests?.includes(chest.id);
@@ -169,7 +264,7 @@ export const Tasks = () => {
                   if (success) {
                     toast({ title: "Chest Opened!", description: `Received ${chest.reward} coins.` });
                   } else {
-                    toast({ variant: "destructive", title: "Low Energy", description: "You need 2 energy to open chests." });
+                    toast({ variant: "destructive", title: "Low Energy", description: "You need 15 energy to open chests." });
                   }
                 }}>
                   <Button size="sm" disabled={isUnlocked} className="h-6 text-[8px] w-full font-black rounded-md">
@@ -182,7 +277,6 @@ export const Tasks = () => {
         </div>
       </div>
 
-      {/* Ad Lottery Entry */}
       <Card className="glass-morphism p-5 border-dashed border-primary/40 bg-primary/5 group">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -250,44 +344,6 @@ export const Tasks = () => {
                     <span>{Math.floor(progress)}%</span>
                   </div>
                   <Progress value={progress} className="h-1 bg-white/5" />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <Coins className="w-3 h-3 text-primary" /> Operator Missions
-        </h3>
-        <div className="space-y-3">
-          {socialTasks.map((task) => {
-            const isDone = task.id === "tg_join" ? user.ownReferralProgress.tgJoined : task.id === "ig_follow" ? user.ownReferralProgress.igFollowed : false;
-
-            return (
-              <Card key={task.id} className="glass-morphism overflow-hidden p-4 group border-white/5 hover:border-white/10 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-2xl ${task.color} bg-opacity-20 text-white shadow-inner`}>
-                      <task.icon className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-white tracking-tight">{task.title}</h4>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{task.subtitle}</p>
-                    </div>
-                  </div>
-                  
-                  {isDone ? (
-                    <div className="flex flex-col items-center">
-                      <CheckCircle2 className="w-6 h-6 text-secondary" />
-                      <span className="text-[8px] text-secondary font-black">VALIDATED</span>
-                    </div>
-                  ) : (
-                    <Button size="sm" onClick={() => handleTask(task.id, task.reward)} className="bg-primary hover:bg-primary/80 font-black px-4 rounded-xl shadow-lg">
-                      +{task.reward}
-                    </Button>
-                  )}
                 </div>
               </Card>
             );

@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 
 export type Tier = "Silver" | "Gold" | "Diamond" | "God Elite";
 export type VIPPlan = "none" | "Silver" | "Gold" | "Diamond";
+export type TaskStatus = 'not_started' | 'opened' | 'completed';
 
 export interface ReferralTasks {
   tgJoined: boolean;
@@ -72,6 +73,7 @@ export interface UserState {
   referralEarnings: number;
   referrals: Referral[];
   ownReferralProgress: ReferralTasks;
+  socialTasks: Record<string, TaskStatus>;
   upgrades: Record<string, number>;
   lastPassiveCollection: number;
   boostEndTime: number | null;
@@ -98,7 +100,8 @@ interface GameContextType {
   enterAdLottery: () => void;
   claimAdChest: (chestId: string, reward: number) => boolean;
   activateBoost: () => void;
-  completeTask: (taskId: string) => void;
+  completeTask: (taskId: string, reward: number) => void;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   claimAdMilestone: (milestoneId: string, rewardCoins: number, rewardTickets?: number) => void;
   claimReferralMilestone: (milestoneId: string, rewardCoins: number) => void;
   registerWithdrawal: (method: string, address: string, coins: number, usdt: number) => void;
@@ -121,7 +124,7 @@ const UPGRADES: Upgrade[] = [
   { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v5';
+const STORAGE_KEY = 'farmrush_user_v6';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -166,6 +169,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       referralEarnings: 0,
       referrals: [],
       ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
+      socialTasks: {},
       upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
       lastPassiveCollection: Date.now(),
       boostEndTime: null,
@@ -184,8 +188,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const photonLevel = user.upgrades.photon_collector || 0;
     let income = (autoMinerLevel * 2) + (photonLevel * 10);
     
-    // VIP Earning Logic: High yield to ensure profit > investment
-    if (user.vipStatus === "Silver") income *= 2.5; // Earn back $5 in ~2 weeks of activity
+    if (user.vipStatus === "Silver") income *= 2.5; 
     if (user.vipStatus === "Gold") income *= 4.0;
     if (user.vipStatus === "Diamond") income *= 8.0;
     
@@ -411,16 +414,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const updateTaskStatus = (taskId: string, status: TaskStatus) => {
+    setUser(u => ({
+      ...u,
+      socialTasks: { ...u.socialTasks, [taskId]: status }
+    }));
+  };
+
+  const completeTask = (taskId: string, reward: number) => {
+    setUser(u => {
+      // Prevent double claiming
+      if (u.socialTasks[taskId] === 'completed') return u;
+
+      return {
+        ...u,
+        wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+        tasksCompleted: u.tasksCompleted + 1,
+        socialTasks: { ...u.socialTasks, [taskId]: 'completed' as TaskStatus },
+        // Update old boolean states for backward compatibility/referral checks
+        ownReferralProgress: {
+          ...u.ownReferralProgress,
+          [taskId === 'tg_join' ? 'tgJoined' : taskId === 'ig_follow' ? 'igFollowed' : '']: true
+        }
+      };
+    });
+  };
+
   const claimVault = () => {};
   const claimReferralReward = (uid: string) => {};
   const feedPet = () => {};
   const incrementStreak = () => {};
-  const completeTask = (id: string) => setUser(u => ({ ...u, tasksCompleted: u.tasksCompleted + 1, ownReferralProgress: { ...u.ownReferralProgress, [id === 'tg_join' ? 'tgJoined' : 'igFollowed']: true } }));
   const claimHourlyAdBonus = () => {};
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak, claimDailyReward
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, updateTaskStatus, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak, claimDailyReward
     }}>
       {children}
     </GameContext.Provider>
