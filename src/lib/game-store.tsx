@@ -80,9 +80,10 @@ export interface UserState {
   comboStreak: number;
   claimedAdMilestones: string[];
   claimedReferralMilestones: string[];
-  unlockedChests: string[]; // Deprecated, using lastChestClaims
+  unlockedChests: string[]; 
   lastChestClaims: Record<string, number>;
   lastDailyRewardAt: number | null;
+  lastCinemaClaimAt: number | null;
   inventory: {
     petFood: number;
     spinTickets: number;
@@ -180,6 +181,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unlockedChests: [],
       lastChestClaims: {},
       lastDailyRewardAt: null,
+      lastCinemaClaimAt: null,
       inventory: { petFood: 0, spinTickets: 0 }
     };
   });
@@ -217,11 +219,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (u.vipStatus === "Gold") vMax = 5000;
       if (u.vipStatus === "Diamond") vMax = 10000;
       
+      // Daily Cinema Counter Reset
+      const lastClaim = u.lastCinemaClaimAt || 0;
+      const dayPassed = now - lastClaim > 24 * 60 * 60 * 1000;
+      const cinemaReset = dayPassed ? 0 : u.cinemaAdsWatched;
+
       return {
         ...u,
         uid: u.uid === "CN000000" ? generatedUid : u.uid,
         referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
-        maxEnergy: vMax + (u.upgrades.energy_core * 100)
+        maxEnergy: vMax + (u.upgrades.energy_core * 100),
+        cinemaAdsWatched: cinemaReset
       };
     });
 
@@ -376,7 +384,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const claimAdMilestone = (milestoneId: string, rewardCoins: number, rewardTickets: number = 0) => {
+    const now = Date.now();
     setUser(u => {
+      // Handle Cinema Daily specifically for daily reset
+      if (milestoneId === "cinema_daily") {
+        const lastClaim = u.lastCinemaClaimAt || 0;
+        if (now - lastClaim < 24 * 60 * 60 * 1000) return u;
+        
+        return {
+          ...u,
+          wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins },
+          lastCinemaClaimAt: now,
+          cinemaAdsWatched: 0 // Reset for next day
+        };
+      }
+
       if (u.claimedAdMilestones?.includes(milestoneId)) return u;
       return {
         ...u,
@@ -444,7 +466,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const completeTask = (taskId: string, reward: number) => {
     setUser(u => {
-      // Prevent double claiming
       if (u.socialTasks[taskId] === 'completed') return u;
 
       return {
@@ -452,7 +473,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         wallet: { ...u.wallet, coins: u.wallet.coins + reward },
         tasksCompleted: u.tasksCompleted + 1,
         socialTasks: { ...u.socialTasks, [taskId]: 'completed' as TaskStatus },
-        // Update old boolean states for backward compatibility/referral checks
         ownReferralProgress: {
           ...u.ownReferralProgress,
           [taskId === 'tg_join' ? 'tgJoined' : taskId === 'ig_follow' ? 'igFollowed' : '']: true

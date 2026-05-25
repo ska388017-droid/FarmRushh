@@ -124,6 +124,15 @@ export const Tasks = () => {
           newTimers[chest.id] = `${hours}h ${minutes}m ${seconds}s`;
         }
       });
+
+      // Cinema Daily Timer
+      const lastCinema = user.lastCinemaClaimAt || 0;
+      const cinemaDiff = (lastCinema + 24 * 60 * 60 * 1000) - now;
+      if (cinemaDiff > 0) {
+        const hours = Math.floor(cinemaDiff / (1000 * 60 * 60));
+        const minutes = Math.floor((cinemaDiff % (1000 * 60 * 60)) / (1000 * 60));
+        newTimers['cinema'] = `${hours}h ${minutes}m`;
+      }
       
       setTimers(newTimers);
     };
@@ -131,10 +140,11 @@ export const Tasks = () => {
     updateTimers();
     const interval = setInterval(updateTimers, 1000);
     return () => clearInterval(interval);
-  }, [user.lastChestClaims]);
+  }, [user.lastChestClaims, user.lastCinemaClaimAt]);
 
   const cinemaProgress = Math.min(100, ((user.cinemaAdsWatched || 0) / 5) * 100);
-  const canClaimPremiere = (user.cinemaAdsWatched || 0) >= 5 && !user.claimedAdMilestones?.includes("cinema_daily");
+  const isCinemaClaimedToday = !!timers['cinema'];
+  const canClaimPremiere = (user.cinemaAdsWatched || 0) >= 5 && !isCinemaClaimedToday;
 
   return (
     <div className="space-y-6 pb-24">
@@ -164,7 +174,7 @@ export const Tasks = () => {
             <div className="space-y-1">
               <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black tracking-widest uppercase mb-2">Cinema Hall 01</Badge>
               <h4 className="text-xl font-black text-white italic uppercase tracking-tighter">Daily Cyber-Premiere</h4>
-              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Watch 5 Premieres for a 5,000 Coin bonus</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Watch 5 Premieres for a 2,000 Coin bonus</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
@@ -178,25 +188,41 @@ export const Tasks = () => {
 
               <div className="flex gap-2">
                 <AdGate actionName="Watch Cinema Premiere" onReward={() => {
+                  if (isCinemaClaimedToday) {
+                    toast({ title: "Daily Limit Reached", description: "Come back tomorrow for more premieres." });
+                    return;
+                  }
                   watchAd(true);
-                  addCoins(1000);
                   refillEnergy();
-                  toast({ title: "Premiere Complete", description: "+1,000 Coins & +1 Energy Received!" });
+                  toast({ title: "Premiere Complete", description: `Progress: ${user.cinemaAdsWatched + 1}/5` });
                 }}>
-                  <Button className="flex-1 bg-primary hover:bg-primary/80 text-white font-black h-12 rounded-xl shadow-lg shadow-primary/20">
-                    <Ticket className="w-4 h-4 mr-2" /> WATCH PREMIERE
+                  <Button disabled={isCinemaClaimedToday} className="flex-1 bg-primary hover:bg-primary/80 text-white font-black h-12 rounded-xl shadow-lg shadow-primary/20">
+                    <Ticket className="w-4 h-4 mr-2" /> {isCinemaClaimedToday ? "LIMIT REACHED" : "WATCH PREMIERE"}
                   </Button>
                 </AdGate>
                 
                 <Button 
                   disabled={!canClaimPremiere}
-                  onClick={() => claimAdMilestone("cinema_daily", 5000)}
+                  onClick={() => {
+                    claimAdMilestone("cinema_daily", 2000);
+                    toast({ title: "Bounty Claimed!", description: "+2,000 Coins added to vault." });
+                  }}
                   className={cn(
                     "px-6 h-12 rounded-xl font-black text-[10px] transition-all",
                     canClaimPremiere ? "bg-secondary text-secondary-foreground shadow-lg shadow-secondary/20" : "bg-white/5 text-muted-foreground"
                   )}
                 >
-                  <Sparkles className="w-4 h-4 mr-2" /> CLAIM 5K
+                  {isCinemaClaimedToday ? (
+                    <div className="flex flex-col items-center">
+                      <Lock className="w-3 h-3 mb-0.5" />
+                      <span>{timers['cinema']}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <Sparkles className="w-3 h-3 mb-0.5" />
+                      <span>CLAIM 2K</span>
+                    </div>
+                  )}
                 </Button>
               </div>
             </div>
