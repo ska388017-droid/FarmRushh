@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from "react";
@@ -26,7 +25,7 @@ const AppContent = () => {
   const isVip = user?.vipStatus && user.vipStatus !== "none";
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24 max-w-md mx-auto relative px-4">
+    <main className="min-h-screen bg-background text-foreground pb-24 max-w-md mx-auto relative px-4 w-full overflow-x-hidden">
       <header className="py-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className={cn(
@@ -69,7 +68,7 @@ const AppContent = () => {
         </div>
       </header>
 
-      <section className="mt-2 animate-in fade-in duration-500">
+      <section className="mt-2 animate-in fade-in duration-500 w-full overflow-x-hidden">
         {activeTab === "mining" && <MiningSystem />}
         {activeTab === "tasks" && <Tasks />}
         {activeTab === "friends" && <ReferralSystem />}

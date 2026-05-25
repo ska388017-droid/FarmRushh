@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -101,7 +100,7 @@ export const MiningSystem = () => {
   const isBoosted = boostTimeRemaining > 0;
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-8 pb-24 w-full">
       {showLuckyFlip && <LuckyFlip onClose={() => setShowLuckyFlip(false)} />}
 
       <div className="grid grid-cols-2 gap-4">
@@ -129,7 +128,6 @@ export const MiningSystem = () => {
         </Card>
       </div>
 
-      {/* High-Capacity Energy System UI */}
       <Card className={cn(
         "glass-morphism border-secondary/30 bg-gradient-to-r p-5 relative overflow-hidden transition-all duration-500",
         isLowEnergy ? "from-destructive/20 to-transparent border-destructive/50" : "from-secondary/5 to-transparent"
@@ -154,7 +152,7 @@ export const MiningSystem = () => {
             toast({ title: "CORE STABILIZED", description: "Full energy recharge complete. Systems are 100% active." });
           }}>
             <Button size="lg" className={cn(
-              "font-black text-[10px] h-12 rounded-xl shadow-lg px-6 uppercase tracking-widest transition-all",
+              "font-black text-[10px] h-12 rounded-xl shadow-lg px-4 uppercase tracking-widest transition-all",
               isLowEnergy ? "bg-destructive text-white animate-bounce" : "bg-secondary text-secondary-foreground"
             )}>
               <CloudLightning className="w-4 h-4 mr-2" /> FULL RECHARGE
@@ -175,14 +173,14 @@ export const MiningSystem = () => {
         {isLowEnergy && (
           <div className="flex items-center gap-2 mt-3 text-destructive animate-pulse">
             <ShieldAlert className="w-3 h-3" />
-            <p className="text-[8px] font-black uppercase tracking-widest">Critical: Mining Efficiency compromised</p>
+            <p className="text-[8px] font-black uppercase tracking-widest">Critical: Efficiency compromised</p>
           </div>
         )}
       </Card>
 
-      <div className="relative flex flex-col items-center justify-center py-6">
+      <div className="relative flex flex-col items-center justify-center py-6 overflow-hidden">
         {isBossEvent && (
-          <div className="absolute top-0 w-full max-w-[200px] space-y-2 animate-in fade-in zoom-in duration-500">
+          <div className="absolute top-0 w-full max-w-[200px] space-y-2 animate-in fade-in zoom-in duration-500 z-20">
              <div className="flex justify-between items-center text-[10px] font-black text-destructive uppercase tracking-widest">
                 <span>Cyber-Sentinel</span>
                 <span>{bossHealth}% HP</span>
@@ -192,7 +190,7 @@ export const MiningSystem = () => {
         )}
 
         <div className={cn(
-          "absolute inset-0 blur-3xl rounded-full scale-150 animate-pulse transition-colors duration-1000",
+          "absolute inset-0 blur-3xl rounded-full scale-110 animate-pulse transition-colors duration-1000 pointer-events-none",
           isBoosted ? "bg-secondary/10" : isBossEvent ? "bg-destructive/10" : "bg-primary/5"
         )} />
         
@@ -201,7 +199,7 @@ export const MiningSystem = () => {
           onTouchStart={handleMine}
           disabled={energy < 1}
           className={cn(
-            "relative z-10 w-48 h-48 rounded-full flex items-center justify-center transition-all duration-75 active:scale-90 select-none",
+            "relative z-10 w-44 h-44 rounded-full flex items-center justify-center transition-all duration-75 active:scale-90 select-none",
             isAnimating ? "scale-95" : "scale-100",
             energy < 1 ? "opacity-30 grayscale cursor-not-allowed" : ""
           )}
@@ -216,7 +214,7 @@ export const MiningSystem = () => {
           )} />
           
           <div className={cn(
-            "relative w-36 h-36 rounded-full shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500",
+            "relative w-32 h-32 rounded-full shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500",
             isBossEvent 
               ? "bg-gradient-to-tr from-destructive via-red-900 to-black shadow-[0_0_60px_rgba(255,50,50,0.5)]"
               : isBoosted 
@@ -225,14 +223,14 @@ export const MiningSystem = () => {
           )}>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
             {isBossEvent ? (
-               <Skull className="w-20 h-20 text-white drop-shadow-[0_0_15px_rgba(255,50,50,0.8)] animate-pulse" />
+               <Skull className="w-16 h-16 text-white drop-shadow-[0_0_15px_rgba(255,50,50,0.8)] animate-pulse" />
             ) : (
                <Diamond className={cn(
-                "w-20 h-20 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-transform duration-300",
+                "w-16 h-16 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-transform duration-300",
                 isAnimating ? "scale-110" : "scale-100"
               )} />
             )}
-            <Sparkles className="absolute top-4 right-4 w-6 h-6 text-white/50 animate-pulse" />
+            <Sparkles className="absolute top-4 right-4 w-4 h-4 text-white/50 animate-pulse" />
           </div>
         </button>
 
@@ -253,16 +251,16 @@ export const MiningSystem = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 w-full">
          <Card className="glass-morphism p-4 border-white/10 hover:border-primary/40 transition-all group relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-0.5 bg-primary/20" />
             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <Dices className="w-5 h-5 text-primary" />
+               <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <Dices className="w-4 h-4 text-primary" />
                </div>
                <div>
                   <p className="text-[10px] font-black text-white uppercase">Lucky Flip</p>
-                  <p className="text-[8px] text-muted-foreground uppercase font-bold">10 Energy</p>
+                  <p className="text-[8px] text-muted-foreground uppercase font-bold">10 NRG</p>
                </div>
             </div>
             <AdGate actionName="Play Lucky Flip" onReward={() => {
@@ -272,19 +270,19 @@ export const MiningSystem = () => {
               }
               setShowLuckyFlip(true);
             }}>
-               <Button size="sm" className="w-full mt-3 h-7 bg-primary/20 text-primary border border-primary/30 text-[9px] font-black rounded-lg">PLAY GAME</Button>
+               <Button size="sm" className="w-full mt-3 h-7 bg-primary/20 text-primary border border-primary/30 text-[9px] font-black rounded-lg">PLAY</Button>
             </AdGate>
          </Card>
 
          <Card className="glass-morphism p-4 border-white/10 hover:border-destructive/40 transition-all group relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-0.5 bg-destructive/20" />
             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center border border-destructive/20">
-                  <Skull className="w-5 h-5 text-destructive" />
+               <div className="w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center border border-destructive/20">
+                  <Skull className="w-4 h-4 text-destructive" />
                </div>
                <div>
                   <p className="text-[10px] font-black text-white uppercase">Daily Boss</p>
-                  <p className="text-[8px] text-muted-foreground uppercase font-bold">50 Energy</p>
+                  <p className="text-[8px] text-muted-foreground uppercase font-bold">50 NRG</p>
                </div>
             </div>
             <AdGate actionName="Summon Boss" onReward={() => {
@@ -294,14 +292,14 @@ export const MiningSystem = () => {
               }
               setIsBossEvent(true);
               setBossHealth(100);
-              toast({ title: "Boss Summoned!", description: "Defeat the Cyber-Sentinel for big rewards!" });
+              toast({ title: "Boss Summoned!", description: "Defeat the Cyber-Sentinel!" });
             }}>
                <Button size="sm" className="w-full mt-3 h-7 bg-destructive/20 text-destructive border border-destructive/30 text-[9px] font-black rounded-lg">SUMMON</Button>
             </AdGate>
          </Card>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 w-full">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
           <Gift className="w-3 h-3" /> Quick Earning
         </h3>
@@ -309,20 +307,20 @@ export const MiningSystem = () => {
         <Card className="glass-morphism p-4 border-secondary/30 bg-secondary/5 relative overflow-hidden group">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-secondary/20 flex items-center justify-center border border-secondary/40">
-                <Play className="w-6 h-6 text-secondary" />
+              <div className="w-10 h-10 rounded-2xl bg-secondary/20 flex items-center justify-center border border-secondary/40">
+                <Play className="w-5 h-5 text-secondary" />
               </div>
               <div>
                 <p className="text-xs font-black text-white uppercase tracking-tighter">Watch & Earn</p>
-                <p className="text-[9px] text-muted-foreground uppercase font-bold">500 Crystals + Full Regen</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">500 C + Regen</p>
               </div>
             </div>
             <AdGate actionName="Watch Ad for Coins" onReward={() => {
               addCoins(500);
               refillEnergy();
-              toast({ title: "Rewards Received!", description: "500 coins + Core stabilized to 100%." });
+              toast({ title: "Rewards Received!", description: "500 coins + Core stabilized." });
             }}>
-              <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-6 shadow-lg shadow-secondary/20">
+              <Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-4 shadow-lg shadow-secondary/20">
                 WATCH
               </Button>
             </AdGate>
@@ -332,10 +330,10 @@ export const MiningSystem = () => {
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 pt-2 flex items-center gap-2">
           <Package className="w-3 h-3" /> System Upgrades
         </h3>
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-3 w-full">
           <UpgradeCard id="drill" name="Nano Drill" level={drillLvl} icon={Pickaxe} benefit={`+2 Coins / Tap`} cost={Math.floor(100 * Math.pow(1.5, drillLvl))} onUpgrade={() => upgrade('drill')} canAfford={user.wallet.coins >= Math.floor(100 * Math.pow(1.5, drillLvl))} />
           <UpgradeCard id="autominer" name="Auto-Miner" level={autoLvl} icon={Cpu} benefit={`+2 Coins / Sec`} cost={Math.floor(500 * Math.pow(1.5, autoLvl))} onUpgrade={() => upgrade('autominer')} canAfford={user.wallet.coins >= Math.floor(500 * Math.pow(1.5, autoLvl))} />
-          <UpgradeCard id="energy_core" name="Energy Core" level={energyLvl} icon={Zap} benefit={`+100 Max Capacity`} cost={Math.floor(300 * Math.pow(1.5, energyLvl))} onUpgrade={() => upgrade('energy_core')} canAfford={user.wallet.coins >= Math.floor(300 * Math.pow(1.5, energyLvl))} />
+          <UpgradeCard id="energy_core" name="Energy Core" level={energyLvl} icon={Zap} benefit={`+100 Max Cap.`} cost={Math.floor(300 * Math.pow(1.5, energyLvl))} onUpgrade={() => upgrade('energy_core')} canAfford={user.wallet.coins >= Math.floor(300 * Math.pow(1.5, energyLvl))} />
         </div>
       </div>
     </div>
