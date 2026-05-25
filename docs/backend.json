@@ -49,7 +49,7 @@
         "coins": { "type": "number" },
         "method": { "type": "string" },
         "address": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "status": { "type": "string", "enum": ["pending", "paid", "completed", "rejected"] },
         "createdAt": { "type": "number" }
       },
       "required": ["uid", "username", "coins", "method", "address", "status", "createdAt"]

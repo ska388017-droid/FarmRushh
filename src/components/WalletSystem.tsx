@@ -1,17 +1,21 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useGame } from "@/lib/game-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, ArrowUpRight, ShieldAlert, Info } from "lucide-react";
+import { Wallet, ArrowUpRight, ShieldAlert, Info, History, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, where, orderBy, limit } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 export const WalletSystem = () => {
   const { user, registerWithdrawal } = useGame();
+  const db = useFirestore();
   const [address, setAddress] = useState("");
 
   const coins = user?.wallet?.coins || 0;
@@ -19,6 +23,19 @@ export const WalletSystem = () => {
   const bnb = user?.wallet?.bnb || 0;
   const adsWatched = user?.adsWatched || 0;
   const lastWithdrawalAt = user?.lastWithdrawalAt || null;
+
+  // Memoize the query for history
+  const historyQuery = useMemo(() => {
+    if (!db || !user?.uid) return null;
+    return query(
+      collection(db, "withdrawals"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+  }, [db, user?.uid]);
+
+  const { data: history, loading: historyLoading } = useCollection(historyQuery);
 
   const handleWithdraw = (network: string) => {
     const MIN_WITHDRAW_COINS = 50000;
@@ -52,7 +69,7 @@ export const WalletSystem = () => {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold neon-text-primary">WALLET</h2>
         <Badge variant="outline" className="border-primary/50 text-primary bg-primary/5 text-[10px] px-3">
@@ -146,7 +163,58 @@ export const WalletSystem = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Withdrawal History Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <History className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Recent Activity</h3>
+          </div>
+          
+          <div className="space-y-3">
+            {historyLoading ? (
+              <div className="text-center py-8 text-xs text-muted-foreground animate-pulse">Loading history...</div>
+            ) : history && history.length > 0 ? (
+              history.map((req: any, i: number) => (
+                <Card key={i} className="glass-morphism p-4 border-white/5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-black text-white">₹{(req.coins / 1000).toFixed(2)}</p>
+                      <Badge variant="outline" className="text-[8px] h-4 px-1 border-white/10 text-muted-foreground uppercase">{req.method}</Badge>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground font-mono truncate max-w-[150px]">{req.address}</p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <StatusBadge status={req.status} />
+                    <p className="text-[8px] text-muted-foreground">{new Date(req.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </Card>
+              ))
+            ) : (
+              <div className="glass-morphism p-8 rounded-2xl border-dashed border-white/5 text-center">
+                <Clock className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">No withdrawal history</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+    </div>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const isPaid = status === "paid" || status === "completed";
+  const isPending = status === "pending";
+  const isRejected = status === "rejected";
+
+  return (
+    <div className={cn(
+      "flex items-center justify-end gap-1.5 font-black text-[9px] uppercase tracking-tighter",
+      isPaid ? "text-secondary" : isPending ? "text-primary" : "text-destructive"
+    )}>
+      {isPaid ? <CheckCircle2 className="w-3 h-3" /> : isPending ? <Clock className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+      {status === "paid" ? "PAID" : status}
     </div>
   );
 };
