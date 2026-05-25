@@ -6,12 +6,13 @@ import { useGame } from "@/lib/game-store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Instagram, Send, CheckCircle2, Coins, ArrowRight, Zap, Play, PlayCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Instagram, Send, CheckCircle2, Coins, ArrowRight, Zap, Play, PlayCircle, Trophy, Box } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AdGate } from "@/components/ads/AdGate";
 
 export const Tasks = () => {
-  const { addCoins, completeTask, user } = useGame();
+  const { addCoins, completeTask, claimAdMilestone, user } = useGame();
 
   const handleTask = (taskId: string, coins: number) => {
     const isCompleted = taskId === "tg_join" ? user.ownReferralProgress.tgJoined : taskId === "ig_follow" ? user.ownReferralProgress.igFollowed : false;
@@ -26,6 +27,12 @@ export const Tasks = () => {
     }, 3000);
   };
 
+  const adMilestones = [
+    { id: "ad_3", target: 3, reward: 2000, title: "Novice Viewer", subtitle: "Watch 3 Ads" },
+    { id: "ad_10", target: 10, reward: 10000, title: "Ad Enthusiast", subtitle: "Watch 10 Ads" },
+    { id: "ad_25", target: 25, reward: 25000, title: "Mystery Box", subtitle: "Watch 25 Ads", special: true },
+  ];
+
   const socialTasks = [
     { id: "tg_join", title: "Join CashNovazhv", subtitle: "Official Telegram Channel", reward: 1000, icon: Send, color: "bg-blue-500" },
     { id: "ig_follow", title: "Follow cashnova503", subtitle: "Official Instagram Page", reward: 1000, icon: Instagram, color: "bg-pink-500" },
@@ -35,8 +42,8 @@ export const Tasks = () => {
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold neon-text-primary tracking-tighter">BOUNTY HUB</h2>
-        <Badge variant="outline" className="border-secondary text-secondary">LIVE</Badge>
+        <h2 className="text-2xl font-bold neon-text-primary tracking-tighter uppercase">Bounty Hub</h2>
+        <Badge variant="outline" className="border-secondary text-secondary font-black">ACTIVE</Badge>
       </div>
 
       {user.referredBy && !user.referralBonusClaimed && (
@@ -55,7 +62,58 @@ export const Tasks = () => {
 
       <div className="space-y-4">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
-          <PlayCircle className="w-3 h-3 text-secondary" /> Daily Ad Taps
+          <Trophy className="w-3 h-3 text-secondary" /> Ad Milestones
+        </h3>
+        
+        <div className="space-y-3">
+          {adMilestones.map((milestone) => {
+            const isClaimed = user.claimedAdMilestones?.includes(milestone.id);
+            const progress = Math.min(100, (user.adsWatched / milestone.target) * 100);
+            const canClaim = user.adsWatched >= milestone.target && !isClaimed;
+
+            return (
+              <Card key={milestone.id} className="glass-morphism p-4 border-white/5 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${milestone.special ? 'bg-secondary/10 border-secondary/30' : 'bg-primary/10 border-primary/20'}`}>
+                      {milestone.special ? <Box className="w-5 h-5 text-secondary" /> : <PlayCircle className="w-5 h-5 text-primary" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase">{milestone.title}</p>
+                      <p className="text-[9px] text-muted-foreground uppercase font-bold">{milestone.subtitle}</p>
+                    </div>
+                  </div>
+                  
+                  {isClaimed ? (
+                    <Badge className="bg-secondary/20 text-secondary border-none text-[8px] font-black uppercase">CLAIMED</Badge>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      disabled={!canClaim}
+                      onClick={() => claimAdMilestone(milestone.id, milestone.reward, milestone.special ? 5 : 0)}
+                      className={`h-8 text-[9px] font-black rounded-lg px-4 ${canClaim ? 'bg-secondary text-secondary-foreground shadow-lg' : 'bg-white/5 text-muted-foreground cursor-not-allowed'}`}
+                    >
+                      {canClaim ? 'CLAIM REWARD' : `${user.adsWatched}/${milestone.target}`}
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-muted-foreground">
+                    <span>PROGRESS</span>
+                    <span>{Math.floor(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-1 bg-white/5" />
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1 flex items-center gap-2">
+          <PlayCircle className="w-3 h-3 text-primary" /> Daily Ad Taps
         </h3>
         
         <Card className="glass-morphism p-4 border-secondary/20 bg-secondary/5 relative overflow-hidden group border-dashed">

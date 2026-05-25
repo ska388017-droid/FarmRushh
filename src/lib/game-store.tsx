@@ -67,6 +67,7 @@ export interface UserState {
   boostEndTime: number | null;
   lastVaultClaimAt: number | null;
   comboStreak: number;
+  claimedAdMilestones: string[];
   inventory: {
     petFood: number;
     spinTickets: number;
@@ -82,6 +83,7 @@ interface GameContextType {
   watchAd: () => void;
   activateBoost: () => void;
   completeTask: (taskId: string) => void;
+  claimAdMilestone: (milestoneId: string, rewardCoins: number, rewardTickets?: number) => void;
   registerWithdrawal: (method: string, address: string, coins: number, usdt: number) => void;
   claimReferralReward: (targetUid: string) => void;
   claimOfflineEarnings: (triple: boolean) => void;
@@ -139,6 +141,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       boostEndTime: null,
       lastVaultClaimAt: null,
       comboStreak: 0,
+      claimedAdMilestones: [],
       inventory: { petFood: 0, spinTickets: 0 }
     };
   });
@@ -316,6 +319,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(u => ({ ...u, comboStreak: u.comboStreak + 1 }));
   };
 
+  const claimAdMilestone = (milestoneId: string, rewardCoins: number, rewardTickets: number = 0) => {
+    setUser(u => {
+      if (u.claimedAdMilestones?.includes(milestoneId)) return u;
+      return {
+        ...u,
+        wallet: {
+          ...u.wallet,
+          coins: (u.wallet?.coins || 0) + rewardCoins
+        },
+        inventory: {
+          ...u.inventory,
+          spinTickets: (u.inventory?.spinTickets || 0) + rewardTickets
+        },
+        claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId]
+      };
+    });
+  };
+
   const completeTask = (taskId: string) => {
     setUser(u => {
       const newTasks = { ...u.ownReferralProgress };
@@ -394,7 +415,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, activateBoost, completeTask, claimAdMilestone, registerWithdrawal, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak
     }}>
       {children}
     </GameContext.Provider>
