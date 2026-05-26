@@ -389,23 +389,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const now = Date.now();
     const lastClaim = user.lastDailyRewardAt || 0;
     const oneDay = 24 * 60 * 60 * 1000;
-    
-    if (now - lastClaim < oneDay) {
-      toast({ title: "Wait!", description: "Daily reward ready soon." });
-      return;
+
+    // Strict VIP check
+    if (user.vip === true) {
+      if (now - lastClaim < oneDay) {
+        toast({ title: "Wait!", description: "Daily reward ready soon." });
+        return;
+      }
+
+      let reward = 5000;
+      if (user.vipPlan === "Silver") reward = 15000;
+      if (user.vipPlan === "Gold") reward = 40000;
+      if (user.vipPlan === "Diamond") reward = 100000;
+
+      setUser(u => ({
+        ...u,
+        wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+        lastDailyRewardAt: now
+      }));
+      toast({ title: "Daily Reward", description: `+${reward.toLocaleString()} coins collected!` });
+    } else {
+      toast({ title: "Access Denied", description: "VIP Required", variant: "destructive" });
     }
-
-    let reward = 5000;
-    if (user.vipPlan === "Silver") reward = 15000;
-    if (user.vipPlan === "Gold") reward = 40000;
-    if (user.vipPlan === "Diamond") reward = 100000;
-
-    setUser(u => ({
-      ...u,
-      wallet: { ...u.wallet, coins: u.wallet.coins + reward },
-      lastDailyRewardAt: now
-    }));
-    toast({ title: "Daily Reward", description: `+${reward.toLocaleString()} coins collected!` });
   };
 
   const addCoins = (amount: number) => setUser(u => ({ 
