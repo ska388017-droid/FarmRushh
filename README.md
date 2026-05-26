@@ -22,4 +22,4 @@ A high-performance Telegram Mini App (TMA) built with Next.js, Genkit, and Fireb
 ## 📂 Deployment & Security
 
 - **Cache Busting**: Versioned SDK links and storage keys ensure users always load the latest build.
-- **Admin Protocol**: Access the dashboard at `/admin`. Enter security key to initialize grid access.
+- **Admin Protocol**: Access the dashboard at `/admin`. Enter security key **ADMIN123** to initialize grid access.

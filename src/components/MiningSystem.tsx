@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -63,8 +62,7 @@ export const MiningSystem = () => {
       setBossHealth(prev => Math.max(0, prev - 2));
       if (bossHealth <= 2) {
         setIsBossEvent(false);
-        // Nerfed Boss reward to 3,000 max
-        addCoins(3000);
+        addCoins(3000); // Sustainable 3k Cap
         toast({ title: "Boss Defeated!", description: "+3,000 Coins recovered!" });
       }
     }
@@ -189,45 +187,6 @@ export const MiningSystem = () => {
             }}><Button size="sm" className="w-full mt-3 h-7 bg-destructive/20 text-destructive border border-destructive/30 text-[9px] font-black rounded-lg">SUMMON</Button></AdGate>
          </Card>
       </div>
-
-      <div className="space-y-4 w-full">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2"><Gift className="w-3 h-3" /> Quick Extraction</h3>
-        <Card className="glass-morphism p-4 border-secondary/30 bg-secondary/5 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-secondary/20 flex items-center justify-center border border-secondary/40"><Play className="w-5 h-5 text-secondary" /></div>
-              <div><p className="text-xs font-black text-white uppercase">Watch & Earn</p><p className="text-[9px] text-muted-foreground uppercase font-bold">500 C + Recharge</p></div>
-            </div>
-            <AdGate actionName="Watch Ad for Coins" onReward={() => {
-              addCoins(500);
-              refillEnergy();
-            }}><Button size="sm" className="bg-secondary text-secondary-foreground font-black text-[10px] h-9 rounded-xl px-4 shadow-lg">WATCH</Button></AdGate>
-          </div>
-        </Card>
-
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1 pt-2 flex items-center gap-2"><Package className="w-3 h-3" /> Tooling Upgrades</h3>
-        <div className="grid grid-cols-1 gap-3 w-full">
-          <UpgradeCard id="drill" name="Nano Drill" level={drillLvl} icon={Pickaxe} benefit={`+2 Coins / Tap`} cost={Math.floor(100 * Math.pow(1.5, drillLvl))} onUpgrade={() => upgrade('drill')} canAfford={(user.wallet?.coins || 0) >= Math.floor(100 * Math.pow(1.5, drillLvl))} />
-          <UpgradeCard id="energy_core" name="Energy Core" level={energyLvl} icon={Zap} benefit={`+100 Max Cap.`} cost={Math.floor(300 * Math.pow(1.5, energyLvl))} onUpgrade={() => upgrade('energy_core')} canAfford={(user.wallet?.coins || 0) >= Math.floor(300 * Math.pow(1.5, energyLvl))} />
-        </div>
-      </div>
     </div>
   );
 };
-
-const UpgradeCard = ({ name, level, icon: Icon, benefit, cost, onUpgrade, canAfford }: any) => (
-  <Card className="glass-morphism p-4 border-white/5 flex items-center justify-between group hover:border-primary/30 transition-all">
-    <div className="flex items-center gap-4">
-      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:border-primary/20 transition-all">
-        <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-all" />
-      </div>
-      <div>
-        <div className="flex items-center gap-2"><p className="text-sm font-black text-white">{name}</p><Badge variant="outline" className="text-[8px] h-4 px-1 border-white/10">LVL {level}</Badge></div>
-        <p className="text-[9px] text-primary font-bold uppercase">{benefit}</p>
-      </div>
-    </div>
-    <Button size="sm" onClick={onUpgrade} disabled={!canAfford} className={cn("h-9 px-4 rounded-xl font-black text-[10px]", canAfford ? "bg-white/10 hover:bg-primary text-white" : "bg-white/5 text-muted-foreground")}>
-      {cost.toLocaleString()} <Diamond className="w-3 h-3 ml-1" />
-    </Button>
-  </Card>
-);

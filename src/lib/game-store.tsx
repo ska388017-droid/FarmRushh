@@ -119,8 +119,7 @@ const UPGRADES: Upgrade[] = [
   { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 100, type: 'tap' },
 ];
 
-// Incremented version to v9 for cache busting
-const STORAGE_KEY = 'farmrush_user_v9';
+const STORAGE_KEY = 'farmrush_user_v2.5.1';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -197,7 +196,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [db, user.uid]);
 
-  // Persist to localstorage for instant load
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
   }, [user]);
@@ -221,14 +219,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const oneDay = 24 * 60 * 60 * 1000;
 
     if (user.vip !== true) {
-      toast({ title: "VIP Required", description: "This feature is for VIP members only.", variant: "destructive" });
+      toast({ title: "VIP Required", description: "Exclusive protocol for VIP members.", variant: "destructive" });
       return;
     }
 
     if (now - lastClaim < oneDay) {
-      const remaining = oneDay - (now - lastClaim);
-      const hours = Math.floor(remaining / (1000 * 60 * 60));
-      toast({ title: "Wait!", description: `Reward ready in ${hours}h.` });
+      toast({ title: "Daily Limit", description: "Daily bounty already extracted." });
       return;
     }
 
@@ -321,7 +317,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
   
   const claimAdChest = (id: string, r: number) => {
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, lastChestClaims: { ...(u.lastChestClaims || {}), [id]: Date.now() } }));
+    const cappedReward = Math.min(3000, r);
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + cappedReward }, lastChestClaims: { ...(u.lastChestClaims || {}), [id]: Date.now() } }));
     return true;
   };
 
@@ -346,7 +343,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateTaskStatus = (id: string, s: TaskStatus) => setUser(u => ({ ...u, socialTasks: { ...u.socialTasks, [id]: s } }));
   const claimReferralMilestone = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
   const claimReferralReward = (uid: string) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + 5000 }, referralEarnings: u.referralEarnings + 5000 }));
-  const claimOfflineEarnings = (t: boolean) => true;
+  const claimOfflineEarnings = (t: boolean) => false; 
   const getPassiveIncome = () => 0;
 
   return (
