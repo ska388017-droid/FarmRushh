@@ -131,7 +131,7 @@ export const AdminWithdrawalPanel = () => {
                     <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">Payout Value</p>
                     <div className="flex items-center gap-1.5">
                       <Gem className="w-3 h-3 text-primary" />
-                      <p className="text-sm font-black text-white">{req.usdtAmount?.toFixed(1) || (req.coins / 200000).toFixed(2)} USDT</p>
+                      <p className="text-sm font-black text-white">{req.usdtAmount?.toFixed(1) || (req.coins / 1000000).toFixed(2)} USDT</p>
                     </div>
                     <p className="text-[8px] text-muted-foreground">{req.coins.toLocaleString()} Coins</p>
                   </div>

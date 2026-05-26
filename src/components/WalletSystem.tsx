@@ -25,13 +25,15 @@ import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
+// Updated Withdrawal Tiers (v2.5.2) - 100K = 0.1 USDT
 const WITHDRAWAL_TIERS = [
-  { usdt: 0.5, coins: 100000, label: "Starter" },
-  { usdt: 1.0, coins: 200000, label: "Common" },
-  { usdt: 2.0, coins: 400000, label: "Rare" },
-  { usdt: 5.0, coins: 1000000, label: "Epic" },
-  { usdt: 10.0, coins: 2000000, label: "Legendary" },
-  { usdt: 50.0, coins: 10000000, label: "God Mode" },
+  { usdt: 0.1, coins: 100000, label: "Micro" },
+  { usdt: 0.5, coins: 500000, label: "Starter" },
+  { usdt: 1.0, coins: 1000000, label: "Common" },
+  { usdt: 2.0, coins: 2000000, label: "Rare" },
+  { usdt: 5.0, coins: 5000000, label: "Epic" },
+  { usdt: 10.0, coins: 10000000, label: "Legendary" },
+  { usdt: 50.0, coins: 50000000, label: "God Mode" },
 ];
 
 export const WalletSystem = () => {
@@ -98,8 +100,8 @@ export const WalletSystem = () => {
             </div>
          </div>
          <div className="flex justify-between items-center text-[10px] font-bold border-t border-white/5 pt-4 relative z-10">
-            <span className="text-white/50">Market Value: <span className="text-primary">{(coins / 200000).toFixed(4)} USDT</span></span>
-            <span className="text-secondary uppercase tracking-widest">FIXED RATE: 200K = 1.0 USDT</span>
+            <span className="text-white/50">Market Value: <span className="text-primary">{(coins / 1000000).toFixed(4)} USDT</span></span>
+            <span className="text-secondary uppercase tracking-widest">FIXED RATE: 100K = 0.1 USDT</span>
          </div>
          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
       </Card>
