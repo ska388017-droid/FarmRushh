@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from "react";
@@ -15,7 +14,8 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
 
-  const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || "ADMIN123";
+  // Hardcoded key for direct sync
+  const adminKey = "ADMIN123";
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +73,7 @@ export default function AdminPage() {
           </form>
           
           <div className="pt-4 border-t border-white/5">
-             <p className="text-[9px] text-muted-foreground/40 uppercase tracking-widest">Global Admin Grid v2.4.0</p>
+             <p className="text-[9px] text-muted-foreground/40 uppercase tracking-widest">Global Admin Grid v2.5.0</p>
           </div>
         </div>
       </main>
@@ -89,7 +89,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-xl font-black text-white uppercase tracking-tighter">Control Hub</h1>
-            <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Administrative Grid</p>
+            <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Administrative Grid v2.5.0</p>
           </div>
         </div>
         <Button 

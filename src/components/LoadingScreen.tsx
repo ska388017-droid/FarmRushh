@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -24,9 +23,9 @@ export const LoadingScreen: React.FC<{ onComplete: () => void }> = ({ onComplete
           setTimeout(onComplete, 800);
           return 100;
         }
-        return prev + 2;
+        return prev + 3; // Slightly faster load for v2.5.0
       });
-    }, 50);
+    }, 40);
 
     const tipTimer = setInterval(() => {
       setTipIndex(prev => (prev + 1) % tips.length);
@@ -50,18 +49,18 @@ export const LoadingScreen: React.FC<{ onComplete: () => void }> = ({ onComplete
         </div>
       </div>
 
-      <h1 className="text-4xl font-bold tracking-tighter text-white mb-2 neon-text-primary">
+      <h1 className="text-4xl font-bold tracking-tighter text-white mb-2 neon-text-primary uppercase">
         FARMRUSH
       </h1>
-      <p className="text-muted-foreground text-sm uppercase tracking-widest mb-12">
-        Initializing Neural Link...
+      <p className="text-muted-foreground text-[10px] uppercase tracking-[0.3em] mb-12">
+        Syncing Neural Grid v2.5.0
       </p>
 
       <div className="w-full max-w-xs space-y-4">
         <Progress value={progress} className="h-1 bg-white/10" />
         <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
           <span>SYSTEM_BOOT_{progress}%</span>
-          <span>STABLE</span>
+          <span>STABLE_v2.5</span>
         </div>
       </div>
 
@@ -72,7 +71,7 @@ export const LoadingScreen: React.FC<{ onComplete: () => void }> = ({ onComplete
       </div>
       
       <div className="absolute bottom-8 text-[10px] text-muted-foreground uppercase tracking-widest opacity-30">
-        Monetag Ad Engine: Active | Firebase: Ready
+        Monetag Ad Engine: Active | Firebase: Ready | v2.5.0
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
@@ -120,7 +119,8 @@ const UPGRADES: Upgrade[] = [
   { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 100, type: 'tap' },
 ];
 
-const STORAGE_KEY = 'farmrush_user_v8';
+// Incremented version to v9 for cache busting
+const STORAGE_KEY = 'farmrush_user_v9';
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -197,6 +197,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [db, user.uid]);
 
+  // Persist to localstorage for instant load
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  }, [user]);
+
   const getMiningPower = useCallback(() => {
     const drillLevel = user.upgrades.drill || 0;
     let basePower = 1 + drillLevel * 2;
@@ -272,38 +277,57 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isCritical = Math.random() < (user.vip ? 0.25 : 0.05);
     const amount = isCritical ? power * 5 : power;
 
+    const newCoins = (user.wallet?.coins || 0) + amount;
+    const newEnergy = Math.max(0, user.energy - 1);
+    const newXp = user.xp + (isCritical ? 10 : 2);
+    const newLevel = Math.floor(newXp / 1000) + 1;
+
     setUser(u => ({
       ...u,
-      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount },
-      energy: Math.max(0, u.energy - 1),
-      xp: u.xp + (isCritical ? 10 : 2),
-      level: Math.floor((u.xp + 2) / 1000) + 1
+      wallet: { ...u.wallet, coins: newCoins },
+      energy: newEnergy,
+      xp: newXp,
+      level: newLevel
     }));
     return { amount, isCritical };
   };
 
   const addCoins = (amount: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount } }));
+  
   const watchAd = (isCinema: boolean = false) => {
-    setUser(u => ({
-      ...u,
-      adsWatched: u.adsWatched + 1,
-      cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
+    setUser(u => {
+      const nextCinema = isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched;
+      return {
+        ...u,
+        adsWatched: u.adsWatched + 1,
+        cinemaAdsWatched: nextCinema,
+      };
+    });
+  };
+
+  const claimAdMilestone = (milestoneId: string, rewardCoins: number) => {
+    setUser(u => ({ 
+      ...u, 
+      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, 
+      claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId] 
     }));
   };
-  const claimAdMilestone = (milestoneId: string, rewardCoins: number) => {
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId] }));
-  };
+
   const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
     if (db) addDoc(collection(db, "withdrawals"), { uid: user.uid, username: user.username, coins, usdtAmount: usdt, method, address, status: "pending", createdAt: Date.now() });
     setUser(u => ({ ...u, wallet: { ...u.wallet, coins: Math.max(0, u.wallet.coins - coins) } }));
   };
+
   const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
+  
   const claimAdChest = (id: string, r: number) => {
     setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, lastChestClaims: { ...(u.lastChestClaims || {}), [id]: Date.now() } }));
     return true;
   };
+
   const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
   const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
+  
   const upgrade = (upgradeId: string) => {
     const upg = UPGRADES.find(x => x.id === upgradeId);
     if (!upg) return;
@@ -317,6 +341,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
     }
   };
+
   const completeTask = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, socialTasks: { ...u.socialTasks, [id]: 'completed' } }));
   const updateTaskStatus = (id: string, s: TaskStatus) => setUser(u => ({ ...u, socialTasks: { ...u.socialTasks, [id]: s } }));
   const claimReferralMilestone = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
