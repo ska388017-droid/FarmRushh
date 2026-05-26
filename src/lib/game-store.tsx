@@ -197,143 +197,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [db, user.uid]);
 
-  useEffect(() => {
-    const initReferral = async () => {
-      if (!db || user.uid === "CN000000") return;
-
-      const tg = (window as any).Telegram?.WebApp;
-      const startParam = tg?.initDataUnsafe?.start_param;
-
-      if (startParam && !user.referredBy && startParam !== user.referralCode) {
-        const usersRef = collection(db, "users");
-        const q = query(where("referralCode", "==", startParam));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          const inviterDoc = querySnapshot.docs[0];
-          const inviterData = inviterDoc.data() as UserState;
-          
-          if (inviterData.uid === user.uid) {
-            toast({ title: "Self-Referral Blocked", description: "You cannot refer yourself." });
-            return;
-          }
-
-          const newReferral: Referral = {
-            uid: user.uid,
-            username: user.username,
-            tasks: { tgJoined: false, igFollowed: false, adsWatched: 0 },
-            joinedAt: Date.now(),
-            isRewarded: false,
-            isVerified: false
-          };
-
-          await updateDoc(doc(db, "users", inviterData.uid), {
-            referrals: arrayUnion(newReferral)
-          });
-
-          setUser(u => ({ ...u, referredBy: inviterData.uid }));
-          updateDoc(doc(db, "users", user.uid), { referredBy: inviterData.uid });
-          toast({ title: "Welcome Bonus!", description: "You joined via referral! Complete 3 tasks to unlock bonus." });
-        }
-      }
-    };
-
-    initReferral();
-  }, [db, user.uid]);
-
-  const syncReferralProgress = useCallback(async (updates: Partial<ReferralTasks>) => {
-    if (!db || !user.referredBy) return;
-
-    const inviterRef = doc(db, "users", user.referredBy);
-    const inviterSnap = await getDoc(inviterRef);
-    
-    if (inviterSnap.exists()) {
-      const inviterData = inviterSnap.data() as UserState;
-      const updatedReferrals = inviterData.referrals.map(ref => {
-        if (ref.uid === user.uid) {
-          const newTasks = { ...ref.tasks, ...updates };
-          const isVerified = newTasks.adsWatched >= 3 || Object.values(user.socialTasks).filter(s => s === 'completed').length >= 3;
-          return { ...ref, tasks: newTasks, isVerified };
-        }
-        return ref;
-      });
-
-      await updateDoc(inviterRef, { referrals: updatedReferrals });
-    }
-  }, [db, user.referredBy, user.socialTasks]);
-
-  const getPassiveIncome = useCallback(() => 0, []);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-  }, [user]);
-
-  useEffect(() => {
-    const now = Date.now();
-    setOfflineEarnings(0);
-
-    const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
-    const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
-
-    setUser(u => {
-      let vMax = 1000;
-      if (u.vipPlan === "Silver") vMax = 2500;
-      if (u.vipPlan === "Gold") vMax = 5000;
-      if (u.vipPlan === "Diamond") vMax = 10000;
-      
-      const lastClaim = u.lastCinemaClaimAt || 0;
-      const dayPassed = now - lastClaim > 24 * 60 * 60 * 1000;
-      const cinemaReset = dayPassed ? 0 : u.cinemaAdsWatched;
-
-      return {
-        ...u,
-        uid: u.uid === "CN000000" ? generatedUid : u.uid,
-        referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
-        maxEnergy: vMax + ((u.upgrades.energy_core || 0) * 100),
-        cinemaAdsWatched: cinemaReset
-      };
-    });
-
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.expand();
-      const tgUser = tg.initDataUnsafe?.user;
-      if (tgUser) {
-        setUser(u => ({
-          ...u,
-          username: tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ""}`.trim(),
-          avatarUrl: tgUser.photo_url,
-          id: tgUser.id.toString(),
-        }));
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      setUser(u => {
-        let newVip = u.vip;
-        let newPlan = u.vipPlan;
-        let newExpire = u.vipExpire;
-        if (newExpire && now > newExpire) {
-          newVip = false;
-          newPlan = "none";
-          newExpire = null;
-        }
-        
-        return {
-          ...u,
-          vip: newVip,
-          vipPlan: newPlan,
-          vipExpire: newExpire,
-          lastPassiveCollection: now
-        };
-      });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   const getMiningPower = useCallback(() => {
     const drillLevel = user.upgrades.drill || 0;
     let basePower = 1 + drillLevel * 2;
@@ -346,6 +209,62 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     return Math.floor(power);
   }, [user.upgrades.drill, user.boostEndTime, user.vipPlan]);
+
+  const claimDailyReward = () => {
+    const now = Date.now();
+    const lastClaim = user.lastDailyRewardAt || 0;
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    if (user.vip !== true) {
+      toast({ title: "VIP Required", description: "This feature is for VIP members only.", variant: "destructive" });
+      return;
+    }
+
+    if (now - lastClaim < oneDay) {
+      const remaining = oneDay - (now - lastClaim);
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      toast({ title: "Wait!", description: `Reward ready in ${hours}h.` });
+      return;
+    }
+
+    let reward = 5000;
+    if (user.vipPlan === "Silver") reward = 15000;
+    if (user.vipPlan === "Gold") reward = 40000;
+    if (user.vipPlan === "Diamond") reward = 100000;
+
+    setUser(u => ({
+      ...u,
+      wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+      lastDailyRewardAt: now
+    }));
+    
+    if (db) {
+      updateDoc(doc(db, "users", user.uid), {
+        "wallet.coins": user.wallet.coins + reward,
+        lastDailyRewardAt: now
+      });
+    }
+
+    toast({ title: "Success!", description: `+${reward.toLocaleString()} CyberCoins claimed.` });
+  };
+
+  const submitVIPRequest = async (plan: VIPPlan, txHash: string, price: number) => {
+    if (!db) return false;
+    try {
+      const q = query(collection(db, "vip_requests"), where("txHash", "==", txHash));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        toast({ title: "Error", description: "Transaction already submitted.", variant: "destructive" });
+        return false;
+      }
+      const requestData = { uid: user.uid, username: user.username, plan, txHash, price, status: "pending", createdAt: Date.now() };
+      await addDoc(collection(db, "vip_requests"), requestData);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  };
 
   const mine = () => {
     if (user.energy < 1) return null;
@@ -363,157 +282,51 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { amount, isCritical };
   };
 
+  const addCoins = (amount: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount } }));
+  const watchAd = (isCinema: boolean = false) => {
+    setUser(u => ({
+      ...u,
+      adsWatched: u.adsWatched + 1,
+      cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
+    }));
+  };
+  const claimAdMilestone = (milestoneId: string, rewardCoins: number) => {
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId] }));
+  };
+  const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
+    if (db) addDoc(collection(db, "withdrawals"), { uid: user.uid, username: user.username, coins, usdtAmount: usdt, method, address, status: "pending", createdAt: Date.now() });
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: Math.max(0, u.wallet.coins - coins) } }));
+  };
+  const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
+  const claimAdChest = (id: string, r: number) => {
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, lastChestClaims: { ...(u.lastChestClaims || {}), [id]: Date.now() } }));
+    return true;
+  };
+  const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
+  const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
   const upgrade = (upgradeId: string) => {
     const upg = UPGRADES.find(x => x.id === upgradeId);
     if (!upg) return;
     const currentLevel = user.upgrades[upgradeId] || 0;
     const cost = Math.floor(upg.baseCost * Math.pow(1.5, currentLevel));
-    if ((user.wallet?.coins || 0) >= cost) {
-      setUser(u => {
-        let vMax = 1000;
-        if (u.vipPlan === "Silver") vMax = 2500;
-        if (u.vipPlan === "Gold") vMax = 5000;
-        if (u.vipPlan === "Diamond") vMax = 10000;
-        
-        return {
-          ...u,
-          wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) - cost },
-          upgrades: { ...u.upgrades, [upgradeId]: currentLevel + 1 },
-          maxEnergy: upgradeId === 'energy_core' ? vMax + ((currentLevel + 1) * 100) : u.maxEnergy
-        }
-      });
-    }
-  };
-
-  const claimDailyReward = () => {
-    const now = Date.now();
-    const lastClaim = user.lastDailyRewardAt || 0;
-    const oneDay = 24 * 60 * 60 * 1000;
-
-    // Strict VIP check
-    if (user.vip === true) {
-      if (now - lastClaim < oneDay) {
-        toast({ title: "Wait!", description: "Daily reward ready soon." });
-        return;
-      }
-
-      let reward = 5000;
-      if (user.vipPlan === "Silver") reward = 15000;
-      if (user.vipPlan === "Gold") reward = 40000;
-      if (user.vipPlan === "Diamond") reward = 100000;
-
+    if (user.wallet.coins >= cost) {
       setUser(u => ({
         ...u,
-        wallet: { ...u.wallet, coins: u.wallet.coins + reward },
-        lastDailyRewardAt: now
+        wallet: { ...u.wallet, coins: u.wallet.coins - cost },
+        upgrades: { ...u.upgrades, [upgradeId]: currentLevel + 1 }
       }));
-      toast({ title: "Daily Reward", description: `+${reward.toLocaleString()} coins collected!` });
-    } else {
-      toast({ title: "Access Denied", description: "VIP Required", variant: "destructive" });
     }
   };
-
-  const addCoins = (amount: number) => setUser(u => ({ 
-    ...u, 
-    wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + amount } 
-  }));
-  
-  const watchAd = (isCinema: boolean = false) => {
-    const now = Date.now();
-    const newCount = user.adsWatched + 1;
-    setUser(u => ({
-      ...u,
-      adsWatched: newCount,
-      lifetimeAds: (u.lifetimeAds || 0) + 1,
-      lastAdAt: now,
-      cinemaAdsWatched: isCinema ? (u.cinemaAdsWatched || 0) + 1 : u.cinemaAdsWatched,
-    }));
-    syncReferralProgress({ adsWatched: newCount });
-  };
-
-  const submitVIPRequest = async (plan: VIPPlan, txHash: string, price: number) => {
-    if (!db) return false;
-    const q = query(collection(db, "vip_requests"), where("txHash", "==", txHash));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      toast({ title: "Error", description: "Transaction already submitted.", variant: "destructive" });
-      return false;
-    }
-    const requestData = { uid: user.uid, username: user.username, plan, txHash, price, status: "pending", createdAt: Date.now() };
-    addDoc(collection(db, "vip_requests"), requestData);
-    return true;
-  };
-
-  const claimAdMilestone = (milestoneId: string, rewardCoins: number) => {
-    const now = Date.now();
-    setUser(u => {
-      if (milestoneId === "cinema_daily") {
-        const lastClaim = u.lastCinemaClaimAt || 0;
-        if (now - lastClaim < 24 * 60 * 60 * 1000) return u;
-        return { ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, lastCinemaClaimAt: now, cinemaAdsWatched: 0 };
-      }
-      if (u.claimedAdMilestones?.includes(milestoneId)) return u;
-      return { ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId] };
-    });
-  };
-
-  const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
-    const withdrawalData = { uid: user.uid, username: user.username, coins, usdtAmount: usdt, method, address, status: "pending", createdAt: Date.now() };
-    addDoc(collection(db, "withdrawals"), withdrawalData);
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: Math.max(0, u.wallet.coins - coins) } }));
-  };
-
-  const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
-  
-  const claimAdChest = (id: string, r: number) => {
-    const now = Date.now();
-    const lastClaim = user.lastChestClaims?.[id] || 0;
-    if (now - lastClaim < 24 * 60 * 60 * 1000) return false;
-    if (user.energy < 15) return false;
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, energy: u.energy - 15, lastChestClaims: { ...(u.lastChestClaims || {}), [id]: now } }));
-    return true;
-  };
-
-  const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
-  const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
-  
-  const claimReferralMilestone = (id: string, r: number) => {
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
-  };
-
-  const claimReferralReward = async (targetUid: string) => {
-    if (!db) return;
-    const updatedReferrals = user.referrals.map(ref => ref.uid === targetUid ? { ...ref, isRewarded: true } : ref);
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + 5000 }, referralEarnings: u.referralEarnings + 5000, referrals: updatedReferrals }));
-  };
-
-  const claimOfflineEarnings = (t: boolean) => {
-    if (user.energy < 10) return false;
-    addCoins(t ? offlineEarnings * 3 : offlineEarnings);
-    setUser(u => ({ ...u, energy: Math.max(0, u.energy - 10) }));
-    setOfflineEarnings(0);
-    return true;
-  };
-
-  const updateTaskStatus = (taskId: string, status: TaskStatus) => {
-    setUser(u => ({ ...u, socialTasks: { ...u.socialTasks, [taskId]: status } }));
-  };
-
-  const completeTask = (taskId: string, reward: number) => {
-    setUser(u => {
-      if (u.socialTasks[taskId] === 'completed') return u;
-      const newStatus = 'completed' as TaskStatus;
-      if (u.referredBy) syncReferralProgress({});
-      return { ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward }, tasksCompleted: u.tasksCompleted + 1, socialTasks: { ...u.socialTasks, [taskId]: newStatus } };
-    });
-  };
-
-  const claimVault = () => {};
-  const claimHourlyAdBonus = () => {};
+  const completeTask = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, socialTasks: { ...u.socialTasks, [id]: 'completed' } }));
+  const updateTaskStatus = (id: string, s: TaskStatus) => setUser(u => ({ ...u, socialTasks: { ...u.socialTasks, [id]: s } }));
+  const claimReferralMilestone = (id: string, r: number) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
+  const claimReferralReward = (uid: string) => setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + 5000 }, referralEarnings: u.referralEarnings + 5000 }));
+  const claimOfflineEarnings = (t: boolean) => true;
+  const getPassiveIncome = () => 0;
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, updateTaskStatus, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimDailyReward
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus: () => {}, enterAdLottery, claimAdChest, activateBoost, completeTask, updateTaskStatus, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimDailyReward
     }}>
       {children}
     </GameContext.Provider>
