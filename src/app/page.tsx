@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -22,7 +23,7 @@ const AppContent = () => {
   const { user } = useGame();
 
   const coins = user?.wallet?.coins || 0;
-  const isVip = user?.vipStatus && user.vipStatus !== "none";
+  const isVip = user?.vip === true;
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24 max-w-md mx-auto relative px-4 w-full overflow-x-hidden">
@@ -46,7 +47,7 @@ const AppContent = () => {
                <p className="text-[10px] text-muted-foreground font-black tracking-widest uppercase">ID: {user?.uid || "-------"}</p>
                {isVip && (
                  <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[7px] px-1 h-3 font-black uppercase tracking-tighter">
-                   <Crown className="w-2 h-2 mr-0.5" /> {user.vipStatus}
+                   <Crown className="w-2 h-2 mr-0.5" /> {user.vipPlan}
                  </Badge>
                )}
             </div>

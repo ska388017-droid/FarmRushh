@@ -66,8 +66,7 @@ export const WalletSystem = () => {
       return;
     }
     
-    // VIP Benefit: Higher withdrawal limit or priority review
-    const isVip = user.vipStatus !== "none";
+    const isVip = user.vip === true;
     registerWithdrawal(network, address, selectedTier.coins, selectedTier.usdt);
     toast({ 
       title: isVip ? "Priority Request Sent" : "Success", 

@@ -52,14 +52,17 @@ export const AdminVIPPanel = () => {
       if (newStatus === "approved") {
         const userRef = doc(db, "users", request.uid);
         const expiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
+        
+        // Finalized VIP Granting Logic
         await updateDoc(userRef, {
           vip: true,
           vipPlan: request.plan,
           vipExpire: expiry
         });
-        toast({ title: "Approved" });
+        
+        toast({ title: "Approved", description: `${request.username} is now VIP ${request.plan}` });
       } else {
-        toast({ title: "Rejected" });
+        toast({ title: "Rejected", variant: "destructive" });
       }
     } catch (e) {
       toast({ title: "Error", variant: "destructive" });
@@ -78,7 +81,7 @@ export const AdminVIPPanel = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input 
-          placeholder="Search..." 
+          placeholder="Search Username or TXID..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 bg-white/5 border-white/10"
@@ -118,7 +121,6 @@ export const AdminVIPPanel = () => {
               <div className="space-y-2">
                 <p className="text-[8px] text-muted-foreground uppercase font-bold">TXID</p>
                 <div className="flex items-center gap-2 bg-black/20 p-2.5 rounded-xl border border-white/5">
-                  <Hash className="w-3 h-3 text-muted-foreground shrink-0" />
                   <code className="text-[9px] text-primary flex-1 truncate font-mono">{req.txHash}</code>
                   <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(req.txHash)}><Copy className="w-3 h-3" /></Button>
                 </div>
