@@ -30,6 +30,14 @@ export default function RootLayout({
         <FirebaseClientProvider>
           {children}
         </FirebaseClientProvider>
+
+        {/* Adsterra Monetization - Website ID: 5808596 */}
+        
+        {/* Social Bar Integration (ID: 29460513) */}
+        <script type='text/javascript' src='//pl29460513.highratecpm.com/ec/2e/9a/ec2e9ab4e9f78367d26e4e5b5e5e5e5e.js' async></script>
+
+        {/* Popunder Integration (ID: 29460514) */}
+        <script type='text/javascript' src='//pl29460514.highratecpm.com/71/82/e3/7182e3f454f76274472390f05808e002.js' async></script>
       </body>
     </html>
   );
