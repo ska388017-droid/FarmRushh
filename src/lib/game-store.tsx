@@ -122,9 +122,7 @@ interface GameContextType {
 
 const UPGRADES: Upgrade[] = [
   { id: 'drill', name: 'Nano Drill', baseCost: 100, baseBenefit: 1, type: 'tap' },
-  { id: 'autominer', name: 'Auto-Miner', baseCost: 500, baseBenefit: 2, type: 'passive' },
   { id: 'energy_core', name: 'Energy Core', baseCost: 300, baseBenefit: 100, type: 'tap' },
-  { id: 'photon_collector', name: 'Photon Collector', baseCost: 1500, baseBenefit: 10, type: 'passive' },
 ];
 
 const STORAGE_KEY = 'farmrush_user_v8';
@@ -173,7 +171,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       referrals: [],
       ownReferralProgress: { tgJoined: false, igFollowed: false, adsWatched: 0 },
       socialTasks: {},
-      upgrades: { drill: 0, autominer: 0, energy_core: 0, photon_collector: 0 },
+      upgrades: { drill: 0, energy_core: 0 },
       lastPassiveCollection: Date.now(),
       boostEndTime: null,
       lastVaultClaimAt: null,
@@ -214,11 +212,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const startParam = tg?.initDataUnsafe?.start_param;
 
       if (startParam && !user.referredBy && startParam !== user.referralCode) {
-        console.log("Start param detected:", startParam);
-        
-        // Find the inviter
         const usersRef = collection(db, "users");
-        const q = query(usersRef, where("referralCode", "==", startParam));
+        const q = query(where("referralCode", "==", startParam));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
@@ -230,7 +225,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
-          // Add to inviter's referrals list
           const newReferral: Referral = {
             uid: user.uid,
             username: user.username,
@@ -244,10 +238,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             referrals: arrayUnion(newReferral)
           });
 
-          // Mark current user as referred
           setUser(u => ({ ...u, referredBy: inviterData.uid }));
           updateDoc(doc(db, "users", user.uid), { referredBy: inviterData.uid });
-
           toast({ title: "Welcome Bonus!", description: "You joined via referral! Complete 3 tasks to unlock bonus." });
         }
       }
@@ -256,7 +248,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initReferral();
   }, [db, user.uid === "CN000000"]);
 
-  // Sync Referral Progress to Inviter
   const syncReferralProgress = useCallback(async (updates: Partial<ReferralTasks>) => {
     if (!db || !user.referredBy) return;
 
@@ -278,17 +269,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [db, user.referredBy, user.socialTasks]);
 
+  // Passive Income is permanently disabled/set to 0
   const getPassiveIncome = useCallback(() => {
-    const autoMinerLevel = user.upgrades.autominer || 0;
-    const photonLevel = user.upgrades.photon_collector || 0;
-    let income = (autoMinerLevel * 2) + (photonLevel * 10);
-    
-    if (user.vipStatus === "Silver") income *= 2.5; 
-    if (user.vipStatus === "Gold") income *= 4.0;
-    if (user.vipStatus === "Diamond") income *= 8.0;
-    
-    return income;
-  }, [user.upgrades, user.vipStatus]);
+    return 0;
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -296,11 +280,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const now = Date.now();
-    const elapsedSeconds = (now - user.lastPassiveCollection) / 1000;
-    const passiveRate = getPassiveIncome();
-    const earnings = Math.floor(elapsedSeconds * passiveRate);
-
-    if (earnings > 1) setOfflineEarnings(earnings);
+    
+    // Disable offline earnings calculation based on passive rate
+    setOfflineEarnings(0);
 
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
     const generatedRefCode = "RN" + Math.floor(100000 + Math.random() * 900000);
@@ -319,7 +301,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...u,
         uid: u.uid === "CN000000" ? generatedUid : u.uid,
         referralCode: u.referralCode === "RN000000" ? generatedRefCode : u.referralCode,
-        maxEnergy: vMax + (u.upgrades.energy_core * 100),
+        maxEnergy: vMax + ((u.upgrades.energy_core || 0) * 100),
         cinemaAdsWatched: cinemaReset
       };
     });
@@ -339,6 +321,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Removed passive accumulation setInterval. 
+  // Coins now only update via direct actions.
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -349,24 +333,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           newVip = "none";
           newExpiry = null;
         }
-
-        const passiveIncome = getPassiveIncome();
-        const coinsAdded = (passiveIncome / 10);
         
         return {
           ...u,
           vipStatus: newVip,
           vipExpiry: newExpiry,
-          wallet: {
-            ...u.wallet,
-            coins: (u.wallet?.coins || 0) + coinsAdded
-          },
           lastPassiveCollection: now
         };
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [getPassiveIncome]);
+  }, []);
 
   const getMiningPower = useCallback(() => {
     const drillLevel = user.upgrades.drill || 0;
@@ -529,7 +506,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(u => ({ 
       ...u, 
-      wallet: { ...u.wallet, coins: u.wallet.coins + r }, 
+      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, 
       energy: u.energy - 15, 
       lastChestClaims: { ...(u.lastChestClaims || {}), [id]: now } 
     }));
@@ -541,17 +518,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const claimReferralMilestone = async (id: string, r: number) => {
     if (!db) return;
-    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: u.wallet.coins + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
     await updateDoc(doc(db, "users", user.uid), {
       claimedReferralMilestones: arrayUnion(id),
-      "wallet.coins": user.wallet.coins + r
+      "wallet.coins": (user.wallet?.coins || 0) + r
     });
   };
 
   const claimReferralReward = async (targetUid: string) => {
     if (!db) return;
 
-    // Find the referral in current user's list
     const updatedReferrals = user.referrals.map(ref => {
       if (ref.uid === targetUid && ref.isVerified && !ref.isRewarded) {
         return { ...ref, isRewarded: true };
@@ -562,14 +538,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const reward = 5000;
     setUser(u => ({ 
       ...u, 
-      wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
       referralEarnings: u.referralEarnings + reward,
       referrals: updatedReferrals
     }));
 
     await updateDoc(doc(db, "users", user.uid), {
       referrals: updatedReferrals,
-      "wallet.coins": user.wallet.coins + reward,
+      "wallet.coins": (user.wallet?.coins || 0) + reward,
       referralEarnings: user.referralEarnings + reward
     });
 
@@ -599,14 +575,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newStatus = 'completed' as TaskStatus;
       const completedCount = Object.values({ ...u.socialTasks, [taskId]: newStatus }).filter(s => s === 'completed').length;
 
-      // Update Inviter if milestone hit
       if (u.referredBy && completedCount >= 3) {
         syncReferralProgress({ tgJoined: taskId === 'tg_join', igFollowed: taskId === 'ig_follow' });
       }
 
       return {
         ...u,
-        wallet: { ...u.wallet, coins: u.wallet.coins + reward },
+        wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
         tasksCompleted: u.tasksCompleted + 1,
         socialTasks: { ...u.socialTasks, [taskId]: newStatus },
       };
