@@ -63,8 +63,9 @@ export const MiningSystem = () => {
       setBossHealth(prev => Math.max(0, prev - 2));
       if (bossHealth <= 2) {
         setIsBossEvent(false);
-        addCoins(10000);
-        toast({ title: "Boss Defeated!" });
+        // Nerfed Boss reward to 3,000 max
+        addCoins(3000);
+        toast({ title: "Boss Defeated!", description: "+3,000 Coins recovered!" });
       }
     }
 

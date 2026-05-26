@@ -4,7 +4,6 @@
 import React, { useState } from "react";
 import { useGame } from "@/lib/game-store";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Diamond, Coins, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -16,11 +15,20 @@ interface LuckyFlipProps {
 export const LuckyFlip = ({ onClose }: LuckyFlipProps) => {
   const { addCoins } = useGame();
   const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
-  const [rewards] = useState(() => [
-    { type: 'coins', amount: 500, label: "500 COINS" },
-    { type: 'coins', amount: 2500, label: "2,500 COINS" },
-    { type: 'coins', amount: 10000, label: "10,000 COINS" },
-  ].sort(() => Math.random() - 0.5));
+  
+  // Weighted rewards: Common (500) is more likely than Rare (3000)
+  const [rewards] = useState(() => {
+    const pool = [
+      { type: 'coins', amount: 300, label: "300 COINS" },
+      { type: 'coins', amount: 500, label: "500 COINS" },
+      { type: 'coins', amount: 800, label: "800 COINS" },
+      { type: 'coins', amount: 1200, label: "1,200 COINS" },
+      { type: 'coins', amount: 3000, label: "3,000 COINS" }, // Max Cap
+    ];
+    
+    // Pick 3 rewards with weighted chance (simplified as random shuffle of selected sub-pool)
+    return pool.sort(() => Math.random() - 0.5).slice(0, 3);
+  });
 
   const handleFlip = (index: number) => {
     if (flippedIndex !== null) return;
@@ -64,7 +72,7 @@ export const LuckyFlip = ({ onClose }: LuckyFlipProps) => {
               {/* Back */}
               <div className="absolute inset-0 backface-hidden rotate-y-180 glass-morphism rounded-2xl border-secondary/50 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-secondary/20 to-transparent shadow-[0_0_30px_rgba(57,255,20,0.2)]">
                  <Sparkles className="w-8 h-8 text-secondary mb-2 animate-bounce" />
-                 <p className="text-xs font-black text-white uppercase tracking-tighter text-center">{rewards[i].label}</p>
+                 <p className="text-xs font-black text-white uppercase tracking-tighter text-center">{rewards[i]?.label}</p>
                  <Badge className="mt-2 bg-secondary/10 text-secondary border-secondary/20 text-[8px] font-black">CLAIMED</Badge>
               </div>
             </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -346,7 +347,7 @@ export const Tasks = () => {
             </div>
             <div>
               <p className="text-xs font-black text-white uppercase tracking-tighter">Daily Cyber-Lottery</p>
-              <p className="text-[9px] text-muted-foreground uppercase font-bold">Entry: Watch 1 Ad | Win 50k Coins</p>
+              <p className="text-[9px] text-muted-foreground uppercase font-bold">Entry: Watch 1 Ad | Win 3,000 Coins</p>
             </div>
           </div>
           <AdGate actionName="Enter Lottery" onReward={() => {
