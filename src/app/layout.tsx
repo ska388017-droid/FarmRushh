@@ -4,7 +4,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import Script from 'next/script';
 
 // Cache busting version
-const APP_VERSION = "2.5.2";
+const APP_VERSION = "2.5.3";
 
 export const metadata: Metadata = {
   title: 'FarmRush - Neon Cyber Mining',
@@ -23,12 +23,23 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased selection:bg-primary selection:text-white overflow-x-hidden w-screen min-h-screen">
+      <body className="font-body antialiased selection:bg-primary selection:text-white overflow-x-hidden w-screen min-h-screen relative">
         {/* Telegram WebApp SDK */}
         <Script 
           src={`https://telegram.org/js/telegram-web-app.js?v=${APP_VERSION}`} 
           strategy="beforeInteractive" 
         />
+
+        {/* Telegram Initialization Script */}
+        <Script id="telegram-init" strategy="afterInteractive">
+          {`
+            if (window.Telegram && window.Telegram.WebApp) {
+              window.Telegram.WebApp.ready();
+              window.Telegram.WebApp.expand();
+              console.log("Telegram WebApp Protocol v${APP_VERSION} Initialized");
+            }
+          `}
+        </Script>
 
         <FirebaseClientProvider>
           {children}
@@ -45,6 +56,18 @@ export default function RootLayout({
           src="//pl29460514.highratecpm.com/71/82/e3/7182e3f454f76274472390f05808e002.js"
           strategy="afterInteractive"
         />
+
+        {/* Adsterra Fallback & Debug Log */}
+        <Script id="adsterra-monitor" strategy="lazyOnload">
+          {`
+            console.log("Adsterra Units Monitoring Initialized...");
+            window.addEventListener('error', function(e) {
+              if (e.target.src && (e.target.src.includes('highratecpm') || e.target.src.includes('pl294605'))) {
+                console.warn('Ad Unit failed to load, check network connectivity');
+              }
+            }, true);
+          `}
+        </Script>
       </body>
     </html>
   );
