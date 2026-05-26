@@ -8,6 +8,10 @@
       "properties": {
         "uid": { "type": "string" },
         "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "vip": { "type": "boolean", "description": "Whether the user is currently a VIP." },
+        "vipPlan": { "type": "string", "enum": ["none", "Silver", "Gold", "Diamond"], "description": "The active VIP tier." },
+        "vipExpire": { "type": "number", "description": "Timestamp when VIP expires." },
         "wallet": {
           "type": "object",
           "properties": {
@@ -19,12 +23,36 @@
         "level": { "type": "number" },
         "energy": { "type": "number" },
         "maxEnergy": { "type": "number" },
+        "lastEnergyRegenAt": { "type": "number" },
+        "adsWatched": { "type": "number" },
+        "cinemaAdsWatched": { "type": "number" },
+        "lifetimeAds": { "type": "number" },
+        "adStreak": { "type": "number" },
+        "lastAdAt": { "type": "number" },
+        "lotteryEntries": { "type": "number" },
+        "tasksCompleted": { "type": "number" },
         "tier": { "type": "string", "enum": ["Silver", "Gold", "Diamond", "God Elite"] },
-        "vipStatus": { "type": "string", "enum": ["none", "Silver", "Gold", "Diamond"] },
-        "vipExpiry": { "type": "number", "description": "Timestamp when VIP expires." },
-        "referralCode": { "type": "string" }
+        "referralCode": { "type": "string" },
+        "referredBy": { "type": "string" },
+        "referralEarnings": { "type": "number" },
+        "referrals": { "type": "array" },
+        "socialTasks": { "type": "object" },
+        "upgrades": { "type": "object" },
+        "lastPassiveCollection": { "type": "number" },
+        "boostEndTime": { "type": "number" },
+        "claimedAdMilestones": { "type": "array" },
+        "claimedReferralMilestones": { "type": "array" },
+        "lastChestClaims": { "type": "object" },
+        "lastDailyRewardAt": { "type": "number" },
+        "lastCinemaClaimAt": { "type": "number" },
+        "inventory": {
+          "type": "object",
+          "properties": {
+            "spinTickets": { "type": "number" }
+          }
+        }
       },
-      "required": ["uid", "username", "wallet", "referralCode"]
+      "required": ["uid", "username", "wallet", "referralCode", "vip", "vipPlan"]
     },
     "WithdrawalRequest": {
       "title": "Withdrawal Request",

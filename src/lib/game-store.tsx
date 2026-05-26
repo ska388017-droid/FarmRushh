@@ -39,8 +39,6 @@ export interface Upgrade {
 export interface WalletState {
   coins: number;
   usdt: number;
-  ton: number;
-  bnb: number;
 }
 
 export interface UserState {
@@ -62,8 +60,9 @@ export interface UserState {
   lotteryEntries: number;
   tasksCompleted: number;
   tier: Tier;
-  vipStatus: VIPPlan;
-  vipExpiry: number | null;
+  vip: boolean;
+  vipPlan: VIPPlan;
+  vipExpire: number | null;
   lastWithdrawalAt: number | null;
   lastWithdrawalAmount: number | null;
   joinedAt: number;
@@ -87,7 +86,6 @@ export interface UserState {
   lastDailyRewardAt: number | null;
   lastCinemaClaimAt: number | null;
   inventory: {
-    petFood: number;
     spinTickets: number;
   };
 }
@@ -115,9 +113,6 @@ interface GameContextType {
   getMiningPower: () => number;
   getPassiveIncome: () => number;
   refillEnergy: () => void;
-  claimVault: () => void;
-  feedPet: () => void;
-  incrementStreak: () => void;
 }
 
 const UPGRADES: Upgrade[] = [
@@ -144,7 +139,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: "user_temp",
       uid: "CN000000",
       username: "Operator",
-      wallet: { coins: 1000, usdt: 0, ton: 0, bnb: 0 },
+      wallet: { coins: 1000, usdt: 0 },
       xp: 0,
       level: 1,
       energy: 1000,
@@ -159,8 +154,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lotteryEntries: 0,
       tasksCompleted: 0,
       tier: "Silver",
-      vipStatus: "none",
-      vipExpiry: null,
+      vip: false,
+      vipPlan: "none",
+      vipExpire: null,
       lastWithdrawalAt: null,
       lastWithdrawalAmount: null,
       joinedAt: Date.now(),
@@ -182,11 +178,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastChestClaims: {},
       lastDailyRewardAt: null,
       lastCinemaClaimAt: null,
-      inventory: { petFood: 0, spinTickets: 0 }
+      inventory: { spinTickets: 0 }
     };
   });
 
-  // Sync user profile with Firestore
   useEffect(() => {
     if (!db || user.uid === "CN000000") return;
     
@@ -196,14 +191,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = snapshot.data() as Partial<UserState>;
         setUser(u => ({ ...u, ...data }));
       } else {
-        // Initialize doc if missing
         updateDoc(userRef, user).catch(() => {});
       }
     });
     return () => unsubscribe();
-  }, [db, user.uid === "CN000000"]);
+  }, [db, user.uid]);
 
-  // Handle Referral Join Logic
   useEffect(() => {
     const initReferral = async () => {
       if (!db || user.uid === "CN000000") return;
@@ -246,7 +239,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initReferral();
-  }, [db, user.uid === "CN000000"]);
+  }, [db, user.uid]);
 
   const syncReferralProgress = useCallback(async (updates: Partial<ReferralTasks>) => {
     if (!db || !user.referredBy) return;
@@ -269,10 +262,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [db, user.referredBy, user.socialTasks]);
 
-  // Passive Income is permanently disabled/set to 0
-  const getPassiveIncome = useCallback(() => {
-    return 0;
-  }, []);
+  const getPassiveIncome = useCallback(() => 0, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -280,8 +270,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const now = Date.now();
-    
-    // Disable offline earnings calculation based on passive rate
     setOfflineEarnings(0);
 
     const generatedUid = "CN" + Math.floor(100000 + Math.random() * 900000);
@@ -289,9 +277,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(u => {
       let vMax = 1000;
-      if (u.vipStatus === "Silver") vMax = 2500;
-      if (u.vipStatus === "Gold") vMax = 5000;
-      if (u.vipStatus === "Diamond") vMax = 10000;
+      if (u.vipPlan === "Silver") vMax = 2500;
+      if (u.vipPlan === "Gold") vMax = 5000;
+      if (u.vipPlan === "Diamond") vMax = 10000;
       
       const lastClaim = u.lastCinemaClaimAt || 0;
       const dayPassed = now - lastClaim > 24 * 60 * 60 * 1000;
@@ -321,27 +309,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Removed passive accumulation setInterval. 
-  // Coins now only update via direct actions.
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       setUser(u => {
-        let newVip = u.vipStatus;
-        let newExpiry = u.vipExpiry;
-        if (newExpiry && now > newExpiry) {
-          newVip = "none";
-          newExpiry = null;
+        let newVip = u.vip;
+        let newPlan = u.vipPlan;
+        let newExpire = u.vipExpire;
+        if (newExpire && now > newExpire) {
+          newVip = false;
+          newPlan = "none";
+          newExpire = null;
         }
         
         return {
           ...u,
-          vipStatus: newVip,
-          vipExpiry: newExpiry,
+          vip: newVip,
+          vipPlan: newPlan,
+          vipExpire: newExpire,
           lastPassiveCollection: now
         };
       });
-    }, 1000);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -351,17 +340,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isBoosted = user.boostEndTime && Date.now() < user.boostEndTime;
     let power = isBoosted ? basePower * 2 : basePower;
     
-    if (user.vipStatus === "Silver") power *= 2.5; 
-    if (user.vipStatus === "Gold") power *= 4.5;
-    if (user.vipStatus === "Diamond") power *= 10.0;
+    if (user.vipPlan === "Silver") power *= 2.5; 
+    if (user.vipPlan === "Gold") power *= 4.5;
+    if (user.vipPlan === "Diamond") power *= 10.0;
     
     return Math.floor(power);
-  }, [user.upgrades.drill, user.boostEndTime, user.vipStatus]);
+  }, [user.upgrades.drill, user.boostEndTime, user.vipPlan]);
 
   const mine = () => {
     if (user.energy < 1) return null;
     const power = getMiningPower();
-    const isCritical = Math.random() < (user.vipStatus !== "none" ? 0.25 : 0.05);
+    const isCritical = Math.random() < (user.vip ? 0.25 : 0.05);
     const amount = isCritical ? power * 5 : power;
 
     setUser(u => ({
@@ -382,9 +371,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if ((user.wallet?.coins || 0) >= cost) {
       setUser(u => {
         let vMax = 1000;
-        if (u.vipStatus === "Silver") vMax = 2500;
-        if (u.vipStatus === "Gold") vMax = 5000;
-        if (u.vipStatus === "Diamond") vMax = 10000;
+        if (u.vipPlan === "Silver") vMax = 2500;
+        if (u.vipPlan === "Gold") vMax = 5000;
+        if (u.vipPlan === "Diamond") vMax = 10000;
         
         return {
           ...u,
@@ -402,14 +391,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const oneDay = 24 * 60 * 60 * 1000;
     
     if (now - lastClaim < oneDay) {
-      toast({ title: "Wait!", description: "Daily reward ready in " + Math.ceil((oneDay - (now - lastClaim)) / (1000 * 60 * 60)) + " hours." });
+      toast({ title: "Wait!", description: "Daily reward ready soon." });
       return;
     }
 
     let reward = 5000;
-    if (user.vipStatus === "Silver") reward = 15000;
-    if (user.vipStatus === "Gold") reward = 40000;
-    if (user.vipStatus === "Diamond") reward = 100000;
+    if (user.vipPlan === "Silver") reward = 15000;
+    if (user.vipPlan === "Gold") reward = 40000;
+    if (user.vipPlan === "Diamond") reward = 100000;
 
     setUser(u => ({
       ...u,
@@ -442,49 +431,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const q = query(collection(db, "vip_requests"), where("txHash", "==", txHash));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      toast({ title: "Error", description: "This transaction hash has already been submitted.", variant: "destructive" });
+      toast({ title: "Error", description: "Transaction already submitted.", variant: "destructive" });
       return false;
     }
     const requestData = { uid: user.uid, username: user.username, plan, txHash, price, status: "pending", createdAt: Date.now() };
-    addDoc(collection(db, "vip_requests"), requestData).catch(async (err) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/vip_requests', operation: 'create', requestResourceData: requestData }));
-    });
+    addDoc(collection(db, "vip_requests"), requestData);
     return true;
   };
 
-  const claimAdMilestone = (milestoneId: string, rewardCoins: number, rewardTickets: number = 0) => {
+  const claimAdMilestone = (milestoneId: string, rewardCoins: number) => {
     const now = Date.now();
     setUser(u => {
       if (milestoneId === "cinema_daily") {
         const lastClaim = u.lastCinemaClaimAt || 0;
         if (now - lastClaim < 24 * 60 * 60 * 1000) return u;
-        
-        return {
-          ...u,
-          wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins },
-          lastCinemaClaimAt: now,
-          cinemaAdsWatched: 0
-        };
+        return { ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, lastCinemaClaimAt: now, cinemaAdsWatched: 0 };
       }
-
       if (u.claimedAdMilestones?.includes(milestoneId)) return u;
-      return {
-        ...u,
-        wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins },
-        claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId]
-      };
+      return { ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + rewardCoins }, claimedAdMilestones: [...(u.claimedAdMilestones || []), milestoneId] };
     });
   };
 
   const registerWithdrawal = (method: string, address: string, coins: number, usdt: number) => {
     const withdrawalData = { uid: user.uid, username: user.username, coins, usdtAmount: usdt, method, address, status: "pending", createdAt: Date.now() };
     addDoc(collection(db, "withdrawals"), withdrawalData);
-    setUser(u => ({ 
-      ...u, 
-      lastWithdrawalAt: Date.now(),
-      lastWithdrawalAmount: usdt,
-      wallet: { ...u.wallet, coins: Math.max(0, u.wallet.coins - coins) }
-    }));
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: Math.max(0, u.wallet.coins - coins) } }));
   };
 
   const refillEnergy = () => setUser(u => ({ ...u, energy: u.maxEnergy }));
@@ -492,110 +463,52 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const claimAdChest = (id: string, r: number) => {
     const now = Date.now();
     const lastClaim = user.lastChestClaims?.[id] || 0;
-    const oneDay = 24 * 60 * 60 * 1000;
-
-    if (now - lastClaim < oneDay) {
-      toast({ title: "Cooldown Active", description: "This node is recharging. Try again tomorrow." });
-      return false;
-    }
-
-    if (user.energy < 15) {
-      toast({ variant: "destructive", title: "Low Energy", description: "You need 15 energy for extraction." });
-      return false;
-    }
-
-    setUser(u => ({ 
-      ...u, 
-      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, 
-      energy: u.energy - 15, 
-      lastChestClaims: { ...(u.lastChestClaims || {}), [id]: now } 
-    }));
+    if (now - lastClaim < 24 * 60 * 60 * 1000) return false;
+    if (user.energy < 15) return false;
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, energy: u.energy - 15, lastChestClaims: { ...(u.lastChestClaims || {}), [id]: now } }));
     return true;
   };
 
   const enterAdLottery = () => setUser(u => ({ ...u, lotteryEntries: u.lotteryEntries + 1 }));
   const activateBoost = () => setUser(u => ({ ...u, boostEndTime: Date.now() + 60000 }));
   
-  const claimReferralMilestone = async (id: string, r: number) => {
-    if (!db) return;
+  const claimReferralMilestone = (id: string, r: number) => {
     setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + r }, claimedReferralMilestones: [...u.claimedReferralMilestones, id] }));
-    await updateDoc(doc(db, "users", user.uid), {
-      claimedReferralMilestones: arrayUnion(id),
-      "wallet.coins": (user.wallet?.coins || 0) + r
-    });
   };
 
   const claimReferralReward = async (targetUid: string) => {
     if (!db) return;
-
-    const updatedReferrals = user.referrals.map(ref => {
-      if (ref.uid === targetUid && ref.isVerified && !ref.isRewarded) {
-        return { ...ref, isRewarded: true };
-      }
-      return ref;
-    });
-
-    const reward = 5000;
-    setUser(u => ({ 
-      ...u, 
-      wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
-      referralEarnings: u.referralEarnings + reward,
-      referrals: updatedReferrals
-    }));
-
-    await updateDoc(doc(db, "users", user.uid), {
-      referrals: updatedReferrals,
-      "wallet.coins": (user.wallet?.coins || 0) + reward,
-      referralEarnings: user.referralEarnings + reward
-    });
-
-    toast({ title: "Referral Claimed!", description: `+${reward.toLocaleString()} coins added to your vault.` });
+    const updatedReferrals = user.referrals.map(ref => ref.uid === targetUid ? { ...ref, isRewarded: true } : ref);
+    setUser(u => ({ ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + 5000 }, referralEarnings: u.referralEarnings + 5000, referrals: updatedReferrals }));
   };
 
   const claimOfflineEarnings = (t: boolean) => {
     if (user.energy < 10) return false;
-    const amount = t ? offlineEarnings * 3 : offlineEarnings;
-    addCoins(amount);
+    addCoins(t ? offlineEarnings * 3 : offlineEarnings);
     setUser(u => ({ ...u, energy: Math.max(0, u.energy - 10) }));
     setOfflineEarnings(0);
     return true;
   };
 
   const updateTaskStatus = (taskId: string, status: TaskStatus) => {
-    setUser(u => ({
-      ...u,
-      socialTasks: { ...u.socialTasks, [taskId]: status }
-    }));
+    setUser(u => ({ ...u, socialTasks: { ...u.socialTasks, [taskId]: status } }));
   };
 
   const completeTask = (taskId: string, reward: number) => {
     setUser(u => {
       if (u.socialTasks[taskId] === 'completed') return u;
-
       const newStatus = 'completed' as TaskStatus;
-      const completedCount = Object.values({ ...u.socialTasks, [taskId]: newStatus }).filter(s => s === 'completed').length;
-
-      if (u.referredBy && completedCount >= 3) {
-        syncReferralProgress({ tgJoined: taskId === 'tg_join', igFollowed: taskId === 'ig_follow' });
-      }
-
-      return {
-        ...u,
-        wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward },
-        tasksCompleted: u.tasksCompleted + 1,
-        socialTasks: { ...u.socialTasks, [taskId]: newStatus },
-      };
+      if (u.referredBy) syncReferralProgress({});
+      return { ...u, wallet: { ...u.wallet, coins: (u.wallet?.coins || 0) + reward }, tasksCompleted: u.tasksCompleted + 1, socialTasks: { ...u.socialTasks, [taskId]: newStatus } };
     });
   };
 
   const claimVault = () => {};
-  const feedPet = () => {};
-  const incrementStreak = () => {};
   const claimHourlyAdBonus = () => {};
 
   return (
     <GameContext.Provider value={{ 
-      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, updateTaskStatus, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimVault, feedPet, incrementStreak, claimDailyReward
+      user, offlineEarnings, mine, upgrade, addCoins, watchAd, claimHourlyAdBonus, enterAdLottery, claimAdChest, activateBoost, completeTask, updateTaskStatus, claimAdMilestone, claimReferralMilestone, registerWithdrawal, submitVIPRequest, claimReferralReward, claimOfflineEarnings, getMiningPower, getPassiveIncome, refillEnergy, claimDailyReward
     }}>
       {children}
     </GameContext.Provider>

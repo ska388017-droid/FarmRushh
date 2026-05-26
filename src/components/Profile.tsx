@@ -3,22 +3,19 @@
 
 import React from "react";
 import { useGame } from "@/lib/game-store";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { 
-  User, 
   ShieldCheck, 
   Zap, 
   Settings, 
   Share2, 
   Award, 
-  Clock, 
   Copy, 
   Fingerprint, 
   Crown,
-  Timer,
-  ChevronRight
+  Timer
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
@@ -26,7 +23,6 @@ import { cn } from "@/lib/utils";
 
 export const Profile = () => {
   const { user } = useGame();
-  const xpToNextLevel = 1000 - (user.xp % 1000);
   const progress = (user.xp % 1000) / 10;
 
   const copyUid = () => {
@@ -35,18 +31,18 @@ export const Profile = () => {
   };
 
   const getTimeRemaining = () => {
-    if (!user.vipExpiry) return null;
-    const diff = user.vipExpiry - Date.now();
+    if (!user.vipExpire) return null;
+    const diff = user.vipExpire - Date.now();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     return days > 0 ? `${days}d Remaining` : "Expires Today";
   };
 
-  const isVip = user.vipStatus !== "none";
+  const isVip = user.vip;
 
   return (
     <div className="space-y-8 pb-24">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold neon-text-primary">PROFILE</h2>
+        <h2 className="text-2xl font-bold neon-text-primary uppercase tracking-tighter">Profile</h2>
         <div className="flex items-center gap-4">
            {isVip && (
              <Badge className="bg-secondary/10 text-secondary border-secondary/20 flex items-center gap-1">
@@ -59,21 +55,15 @@ export const Profile = () => {
 
       <div className="flex flex-col items-center text-center space-y-4">
         <div className="relative">
-          <div className={cn(
-            "absolute inset-0 rounded-full animate-pulse blur-xl",
-            isVip ? "bg-secondary/20" : "bg-primary/20"
-          )} />
-          <div className={cn(
-            "relative p-[3px] rounded-full bg-gradient-to-tr",
-            isVip ? "from-secondary via-white to-secondary" : "from-primary via-secondary to-primary"
-          )}>
+          <div className={cn("absolute inset-0 rounded-full animate-pulse blur-xl", isVip ? "bg-secondary/20" : "bg-primary/20")} />
+          <div className={cn("relative p-[3px] rounded-full bg-gradient-to-tr", isVip ? "from-secondary via-white to-secondary" : "from-primary via-secondary to-primary")}>
             <Avatar className="w-24 h-24 border-4 border-background">
               <AvatarImage src={user.avatarUrl} />
               <AvatarFallback className="bg-muted text-primary text-xl font-black">{user.username.substring(0,2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </div>
           <Badge className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-primary text-[9px] px-3 font-black border-2 border-background shadow-xl uppercase">
-            {isVip ? `${user.vipStatus} VIP` : user.tier}
+            {isVip ? `${user.vipPlan} VIP` : user.tier}
           </Badge>
         </div>
         
@@ -81,10 +71,7 @@ export const Profile = () => {
           <h3 className="text-xl font-black flex items-center justify-center gap-2">
             {user.username} {isVip && <Crown className="w-5 h-5 text-secondary" />}
           </h3>
-          <div 
-            onClick={copyUid}
-            className="flex items-center justify-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-white/10"
-          >
+          <div onClick={copyUid} className="flex items-center justify-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-white/10">
             <Fingerprint className="w-3 h-3 text-muted-foreground" />
             <span className="text-[10px] font-mono text-muted-foreground uppercase">{user.uid}</span>
             <Copy className="w-3 h-3 text-primary/50" />
@@ -112,7 +99,7 @@ export const Profile = () => {
       <Card className="glass-morphism p-6 space-y-4">
         <div className="flex justify-between items-end mb-1">
           <div className="space-y-0.5">
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Operator Ranking</span>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase">Ranking Protocol</span>
             <p className="text-xs font-black text-white">LEVEL {user.level} OPERATIVE</p>
           </div>
           <span className="text-xs font-bold text-primary">{user.xp % 1000} / 1000 XP</span>
@@ -124,14 +111,6 @@ export const Profile = () => {
         <StatCard icon={Award} label="Ads Verified" value={user.adsWatched} />
         <StatCard icon={Share2} label="Network Size" value={user.referrals.length} />
       </div>
-
-      <div className="space-y-4">
-        <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 px-1">Tactical Inventory</h4>
-        <div className="grid grid-cols-1 gap-3">
-          <InventoryItem title="Spin Tickets" count={user.inventory.spinTickets} icon={Zap} />
-          <InventoryItem title="Power Boosters" count={user.boostEndTime ? 1 : 0} icon={Award} />
-        </div>
-      </div>
     </div>
   );
 };
@@ -139,19 +118,7 @@ export const Profile = () => {
 const StatCard = ({ icon: Icon, label, value }: { icon: any, label: string, value: any }) => (
   <Card className="glass-morphism p-4 flex flex-col items-center gap-1 border-white/5 bg-gradient-to-b from-white/5 to-transparent">
     <Icon className="w-5 h-5 text-primary mb-1 opacity-70" />
-    <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">{label}</p>
+    <p className="text-[9px] text-muted-foreground uppercase font-bold">{label}</p>
     <p className="text-lg font-black">{value}</p>
   </Card>
-);
-
-const InventoryItem = ({ title, count, icon: Icon }: any) => (
-  <div className="glass-morphism p-3 rounded-xl flex items-center justify-between border-white/5">
-    <div className="flex items-center gap-3">
-      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-        <Icon className="w-4 h-4 text-primary" />
-      </div>
-      <p className="text-xs font-bold text-white">{title}</p>
-    </div>
-    <span className="text-xs font-black text-primary">{count}</span>
-  </div>
 );
